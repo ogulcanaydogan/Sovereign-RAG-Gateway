@@ -96,3 +96,11 @@ def test_openai_sdk_embeddings_compat(live_server: str) -> None:
     assert response.object == "list"
     assert len(response.data) == 2
     assert len(response.data[0].embedding) == 16
+
+
+def test_openai_sdk_models_list_compat(live_server: str) -> None:
+    client = OpenAI(api_key="test-key", base_url=f"{live_server}/v1")
+    models = client.models.list(extra_headers=_extra_headers())
+
+    assert models.object == "list"
+    assert any(item.id == "gpt-4o-mini" for item in models.data)

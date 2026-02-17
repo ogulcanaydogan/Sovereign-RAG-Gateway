@@ -3,6 +3,7 @@ from hashlib import sha256
 from typing import Any, cast
 from uuid import uuid4
 
+import httpx
 from jsonschema import ValidationError, validate
 
 from app.config.settings import Settings
@@ -22,11 +23,56 @@ class OPAClient:
         self._settings = settings
         self._schema_path = settings.contracts_dir / "policy-decision.schema.json"
         self._schema = self._schema_path.read_text(encoding="utf-8")
+        self._schema_json = self._schema_as_json()
 
     def evaluate(self, payload: dict[str, Any]) -> PolicyDecision:
         if self._settings.opa_simulate_timeout:
             raise PolicyTimeoutError("OPA timed out")
 
+        if self._settings.opa_url:
+            decision_payload = self._evaluate_remote(payload)
+        else:
+            decision_payload = self._evaluate_local(payload)
+
+        decision_payload.setdefault("decision_id", str(uuid4()))
+        decision_payload.setdefault("policy_hash", sha256(self._schema.encode("utf-8")).hexdigest())
+        decision_payload.setdefault("evaluated_at", datetime.now(UTC).isoformat())
+        decision_payload.setdefault("transforms", [])
+
+        try:
+            validate(instance=decision_payload, schema=self._schema_json)
+        except ValidationError as exc:
+            raise PolicyValidationError(str(exc)) from exc
+
+        return PolicyDecision.from_dict(decision_payload)
+
+    def _evaluate_remote(self, payload: dict[str, Any]) -> dict[str, Any]:
+        opa_url = self._settings.opa_url
+        if not opa_url:
+            raise PolicyValidationError("OPA URL is not configured")
+        try:
+            response = httpx.post(
+                opa_url,
+                json={"input": payload},
+                timeout=self._settings.opa_timeout_ms / 1000,
+            )
+            response.raise_for_status()
+        except httpx.TimeoutException as exc:
+            raise PolicyTimeoutError("OPA timed out") from exc
+        except httpx.HTTPError as exc:
+            raise PolicyTimeoutError(f"OPA request failed: {exc}") from exc
+
+        parsed = response.json()
+        if not isinstance(parsed, dict):
+            raise PolicyValidationError("OPA response must be an object")
+
+        raw_result = parsed.get("result", parsed)
+        if not isinstance(raw_result, dict):
+            raise PolicyValidationError("OPA result must be an object")
+
+        return cast(dict[str, Any], raw_result)
+
+    def _evaluate_local(self, payload: dict[str, Any]) -> dict[str, Any]:
         requested_model = str(payload.get("requested_model", ""))
         classification = str(payload.get("classification", "public"))
 
@@ -63,12 +109,7 @@ class OPAClient:
         if allow:
             decision_payload["max_tokens_override"] = 256
 
-        try:
-            validate(instance=decision_payload, schema=self._schema_as_json())
-        except ValidationError as exc:
-            raise PolicyValidationError(str(exc)) from exc
-
-        return PolicyDecision.from_dict(decision_payload)
+        return decision_payload
 
     def _schema_as_json(self) -> dict[str, Any]:
         import json
