@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     api_keys: str = Field(default="dev-key", description="Comma separated API keys")
     default_model: str = "gpt-4o-mini"
     model_catalog: str = "gpt-4o-mini,text-embedding-3-small"
+    rag_enabled: bool = True
+    rag_default_top_k: int = 3
+    rag_allowed_connectors: str = "filesystem"
+    rag_filesystem_index_path: Path = Path("artifacts/rag/filesystem_index.jsonl")
     opa_timeout_ms: int = 150
     opa_mode: str = "enforce"
     opa_url: str | None = None
@@ -29,6 +33,10 @@ class Settings(BaseSettings):
     @property
     def configured_models(self) -> list[str]:
         return [item.strip() for item in self.model_catalog.split(",") if item.strip()]
+
+    @property
+    def rag_allowed_connector_set(self) -> set[str]:
+        return {item.strip() for item in self.rag_allowed_connectors.split(",") if item.strip()}
 
 
 @lru_cache
