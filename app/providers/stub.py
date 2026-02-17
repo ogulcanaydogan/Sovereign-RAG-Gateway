@@ -1,0 +1,90 @@
+from hashlib import sha256
+from time import time
+from uuid import uuid4
+
+from app.providers.base import ProviderError
+
+
+class StubProvider:
+    async def chat(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int | None,
+    ) -> dict[str, object]:
+        self._maybe_raise_provider_error(model)
+        last_user_message = next(
+            (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
+        )
+        answer = f"Stub response: {last_user_message[:120]}"
+        prompt_tokens = max(sum(len(m["content"].split()) for m in messages), 1)
+        completion_tokens = max(len(answer.split()), 1)
+        return {
+            "id": f"chatcmpl-{uuid4().hex}",
+            "object": "chat.completion",
+            "created": int(time()),
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": answer,
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+            "max_tokens_applied": max_tokens,
+        }
+
+    async def embeddings(self, model: str, inputs: list[str]) -> dict[str, object]:
+        self._maybe_raise_provider_error(model)
+        data: list[dict[str, object]] = []
+        prompt_tokens = 0
+        for index, text in enumerate(inputs):
+            vector = self._text_to_vector(text)
+            prompt_tokens += max(len(text.split()), 1)
+            data.append(
+                {
+                    "object": "embedding",
+                    "index": index,
+                    "embedding": vector,
+                }
+            )
+
+        return {
+            "object": "list",
+            "data": data,
+            "model": model,
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "total_tokens": prompt_tokens,
+            },
+        }
+
+    @staticmethod
+    def _text_to_vector(text: str) -> list[float]:
+        digest = sha256(text.encode("utf-8")).digest()
+        vector = [round((byte - 128) / 128.0, 6) for byte in digest[:16]]
+        return vector
+
+    @staticmethod
+    def _maybe_raise_provider_error(model: str) -> None:
+        if model.startswith("error-429"):
+            raise ProviderError(
+                status_code=429,
+                code="provider_rate_limited",
+                message="Provider rate limit exceeded",
+                error_type="rate_limit",
+            )
+        if model.startswith("error-502"):
+            raise ProviderError(
+                status_code=502,
+                code="provider_bad_gateway",
+                message="Provider upstream bad gateway",
+            )

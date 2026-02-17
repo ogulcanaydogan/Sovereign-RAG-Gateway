@@ -1,0 +1,30 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SRG_API_KEYS: dev-key
+      SRG_AUDIT_LOG_PATH: /tmp/audit/events.jsonl
+      SRG_PROVIDER_NAME: stub
+      SRG_OPA_MODE: enforce
+    ports:
+      - "8000:8000"
+    depends_on:
+      - opa
+      - postgres
+
+  opa:
+    image: openpolicyagent/opa:0.67.0
+    command: ["run", "--server", "--addr=0.0.0.0:8181"]
+    ports:
+      - "8181:8181"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: srg
+      POSTGRES_PASSWORD: srg
+      POSTGRES_DB: srg
+    ports:
+      - "5432:5432"

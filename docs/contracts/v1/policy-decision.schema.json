@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-rag-gateway.dev/contracts/v1/policy-decision.schema.json",
+  "title": "PolicyDecisionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["allow", "decision_id", "policy_hash", "evaluated_at", "transforms"],
+  "properties": {
+    "decision_id": {
+      "type": "string"
+    },
+    "allow": {
+      "type": "boolean"
+    },
+    "deny_reason": {
+      "type": "string"
+    },
+    "policy_hash": {
+      "type": "string"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "max_tokens_override": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "provider_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "transforms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "args"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "set_max_tokens",
+              "override_model",
+              "prepend_system_guardrail"
+            ]
+          },
+          "args": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
