@@ -42,6 +42,26 @@ curl -s http://127.0.0.1:8000/v1/models \
   -H 'x-srg-classification: public'
 ```
 
+```bash
+curl -s http://127.0.0.1:8000/v1/chat/completions \
+  -H 'Authorization: Bearer dev-key' \
+  -H 'x-srg-tenant-id: tenant-a' \
+  -H 'x-srg-user-id: user-1' \
+  -H 'x-srg-classification: phi' \
+  -H 'content-type: application/json' \
+  -d '{
+    "model":"gpt-4o-mini",
+    "messages":[{"role":"user","content":"give triage policy summary"}],
+    "rag":{"enabled":true,"connector":"filesystem","top_k":2}
+  }'
+```
+
+## RAG Ingestion
+```bash
+python3 scripts/generate_synthetic_healthcare_corpus.py --output-dir benchmarks/data/synthetic_corpus
+python3 scripts/rag_ingest.py --input-dir benchmarks/data/synthetic_corpus --output artifacts/rag/filesystem_index.jsonl
+```
+
 ## Compose Smoke
 ```bash
 ./scripts/compose_smoke.sh

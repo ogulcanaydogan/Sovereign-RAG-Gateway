@@ -75,9 +75,16 @@ class OPAClient:
     def _evaluate_local(self, payload: dict[str, Any]) -> dict[str, Any]:
         requested_model = str(payload.get("requested_model", ""))
         classification = str(payload.get("classification", "public"))
+        connector_targets = [
+            str(item) for item in cast(list[object], payload.get("connector_targets", []))
+        ]
+        allowed_connectors = sorted(self._settings.rag_allowed_connector_set)
 
         allow = not requested_model.startswith("forbidden")
         deny_reason = None if allow else "model_not_allowed"
+        if allow and any(item not in allowed_connectors for item in connector_targets):
+            allow = False
+            deny_reason = "connector_not_allowed"
 
         transforms: list[dict[str, Any]] = []
         if allow and classification in {"phi", "pii"}:
@@ -100,6 +107,9 @@ class OPAClient:
             "provider_constraints": {
                 "allowed_providers": ["stub"],
                 "allowed_models": [requested_model],
+            },
+            "connector_constraints": {
+                "allowed_connectors": allowed_connectors,
             },
         }
 

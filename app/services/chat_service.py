@@ -12,6 +12,7 @@ from app.core.errors import AppError
 from app.models.openai import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+    Citation,
     EmbeddingsRequest,
     EmbeddingsResponse,
 )
@@ -19,6 +20,13 @@ from app.policy.client import OPAClient, PolicyTimeoutError, PolicyValidationErr
 from app.policy.models import PolicyDecision
 from app.policy.transforms import apply_transforms
 from app.providers.base import ChatProvider, ProviderError
+from app.rag.retrieval import (
+    ConnectorNotFoundError,
+    RetrievalDeniedError,
+    RetrievalOrchestrator,
+    RetrievalRequest,
+)
+from app.rag.types import DocumentChunk
 from app.redaction.engine import RedactionEngine
 
 logger = logging.getLogger("srg.chat")
@@ -32,12 +40,14 @@ class ChatService:
         provider: ChatProvider,
         redaction_engine: RedactionEngine,
         audit_writer: AuditWriter,
+        retrieval_orchestrator: RetrievalOrchestrator | None = None,
     ):
         self._settings = settings
         self._policy_client = policy_client
         self._provider = provider
         self._redaction_engine = redaction_engine
         self._audit_writer = audit_writer
+        self._retrieval_orchestrator = retrieval_orchestrator
 
     async def handle_chat(
         self, request: Request, payload: ChatCompletionRequest
@@ -48,6 +58,9 @@ class ChatService:
         user_id = request.state.user_id
         classification = request.state.classification
 
+        rag_requested = bool(self._settings.rag_enabled and payload.rag and payload.rag.enabled)
+        requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
+
         policy_input = {
             "tenant_id": tenant_id,
             "user_id": user_id,
@@ -55,7 +68,7 @@ class ChatService:
             "requested_model": payload.model,
             "classification": classification,
             "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
-            "connector_targets": [],
+            "connector_targets": [requested_connector] if rag_requested else [],
             "request_metadata": {
                 "request_id": request_id,
             },
@@ -69,6 +82,24 @@ class ChatService:
 
         transformed_request = apply_transforms(payload.model_dump(), decision.transforms)
         messages: list[dict[str, str]] = transformed_request["messages"]
+
+        citations: list[Citation] | None = None
+        if rag_requested and payload.rag:
+            retrieval_request = RetrievalRequest(
+                query=self._last_user_message(payload),
+                connector=payload.rag.connector,
+                k=payload.rag.top_k,
+                filters=payload.rag.filters or {},
+            )
+            chunks = self._retrieve_chunks(retrieval_request, decision)
+            if chunks:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": self._build_retrieval_context(chunks),
+                    }
+                )
+                citations = self._citations_from_chunks(chunks)
 
         redaction_count = 0
         if self._settings.redaction_enabled and classification in {"phi", "pii"}:
@@ -84,6 +115,9 @@ class ChatService:
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = ChatCompletionResponse.model_validate(provider_result)
+
+        if citations and response.choices:
+            response.choices[0].message.citations = citations
 
         policy_decision_label = self._policy_decision_label(decision)
         tokens_in = response.usage.prompt_tokens
@@ -307,3 +341,71 @@ class ChatService:
         if decision.transforms:
             return "transform"
         return "allow"
+
+    def _allowed_connectors(self, decision: PolicyDecision) -> set[str] | None:
+        if (
+            decision.connector_constraints is not None
+            and decision.connector_constraints.allowed_connectors is not None
+        ):
+            return set(decision.connector_constraints.allowed_connectors)
+        if self._settings.rag_allowed_connector_set:
+            return set(self._settings.rag_allowed_connector_set)
+        return None
+
+    def _retrieve_chunks(
+        self,
+        retrieval_request: RetrievalRequest,
+        decision: PolicyDecision,
+    ) -> list[DocumentChunk]:
+        if self._retrieval_orchestrator is None:
+            raise AppError(
+                503,
+                "retrieval_unavailable",
+                "provider",
+                "Retrieval orchestrator is not configured",
+            )
+
+        try:
+            return self._retrieval_orchestrator.retrieve(
+                request=retrieval_request,
+                allowed_connectors=self._allowed_connectors(decision),
+            )
+        except RetrievalDeniedError as exc:
+            raise AppError(
+                403,
+                "retrieval_forbidden",
+                "policy",
+                str(exc),
+            ) from exc
+        except ConnectorNotFoundError as exc:
+            raise AppError(
+                422,
+                "connector_not_found",
+                "validation",
+                f"Connector not configured: {exc}",
+            ) from exc
+
+    @staticmethod
+    def _last_user_message(payload: ChatCompletionRequest) -> str:
+        for message in reversed(payload.messages):
+            if message.role == "user":
+                return message.content
+        return payload.messages[-1].content
+
+    @staticmethod
+    def _build_retrieval_context(chunks: list[DocumentChunk]) -> str:
+        lines = [f"[{chunk.chunk_id}] {chunk.text}" for chunk in chunks]
+        return "Retrieved context chunks:\n" + "\n".join(lines)
+
+    @staticmethod
+    def _citations_from_chunks(chunks: list[DocumentChunk]) -> list[Citation]:
+        return [
+            Citation(
+                source_id=chunk.source_id,
+                connector=chunk.connector,
+                uri=chunk.uri,
+                chunk_id=chunk.chunk_id,
+                score=chunk.score,
+            )
+            for chunk in chunks
+        ]

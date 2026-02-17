@@ -8,11 +8,19 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1)
 
 
+class RagOptions(BaseModel):
+    enabled: bool = False
+    connector: str = "filesystem"
+    top_k: int = Field(default=3, ge=1, le=20)
+    filters: dict[str, str] | None = None
+
+
 class ChatCompletionRequest(BaseModel):
     model: str
     messages: list[ChatMessage] = Field(min_length=1)
     temperature: float | None = Field(default=0.2, ge=0, le=2)
     max_tokens: int | None = Field(default=256, ge=1, le=8192)
+    rag: RagOptions | None = None
 
 
 class Usage(BaseModel):
@@ -21,9 +29,18 @@ class Usage(BaseModel):
     total_tokens: int
 
 
+class Citation(BaseModel):
+    source_id: str
+    connector: str
+    uri: str
+    chunk_id: str
+    score: float
+
+
 class ChoiceMessage(BaseModel):
     role: Literal["assistant"] = "assistant"
     content: str
+    citations: list[Citation] | None = None
 
 
 class Choice(BaseModel):

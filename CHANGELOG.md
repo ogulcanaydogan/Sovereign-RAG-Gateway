@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.0-alpha.3 - 2026-02-17
+- Added connector-based RAG foundation with `app/rag` registry, connector protocol, and retrieval orchestrator.
+- Implemented filesystem connector search/fetch with metadata filtering and citation-ready chunk output.
+- Added chat request RAG options and citation extension wiring on `POST /v1/chat/completions`.
+- Added policy connector constraints to contract/model and enforced retrieval connector deny paths.
+- Added ingestion tooling (`scripts/rag_ingest.py`) and synthetic healthcare corpus generator (`scripts/generate_synthetic_healthcare_corpus.py`).
+- Added unit/integration coverage for filesystem retrieval, retrieval policy gating, and citation-bearing chat responses.
+
 ## v0.1.0-alpha.2 - 2026-02-17
 - Added `GET /v1/models` endpoint and OpenAI SDK compatibility coverage for model listing.
 - Added policy observe-mode handling so deny/timeout can be audited as `observe` without blocking requests.

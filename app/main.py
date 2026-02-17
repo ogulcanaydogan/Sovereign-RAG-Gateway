@@ -11,6 +11,9 @@ from app.middleware.auth import AuthMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
 from app.providers.stub import StubProvider
+from app.rag.connectors.filesystem import FilesystemConnector
+from app.rag.registry import ConnectorRegistry
+from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
 from app.services.chat_service import ChatService
 
@@ -24,12 +27,22 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
 
+    connector_registry = ConnectorRegistry()
+    connector_registry.register(
+        "filesystem",
+        FilesystemConnector(index_path=settings.rag_filesystem_index_path),
+    )
+
     chat_service = ChatService(
         settings=settings,
         policy_client=OPAClient(settings),
         provider=StubProvider(),
         redaction_engine=RedactionEngine(),
         audit_writer=AuditWriter(settings),
+        retrieval_orchestrator=RetrievalOrchestrator(
+            registry=connector_registry,
+            default_k=settings.rag_default_top_k,
+        ),
     )
     app.state.chat_service = chat_service
 

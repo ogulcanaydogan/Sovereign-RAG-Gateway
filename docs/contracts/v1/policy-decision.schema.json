@@ -44,6 +44,18 @@
         }
       }
     },
+    "connector_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_connectors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "transforms": {
       "type": "array",
       "items": {

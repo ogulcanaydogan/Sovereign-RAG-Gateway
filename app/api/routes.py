@@ -30,7 +30,11 @@ def list_models(request: Request) -> dict[str, object]:
     return service.list_models()
 
 
-@router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+@router.post(
+    "/v1/chat/completions",
+    response_model=ChatCompletionResponse,
+    response_model_exclude_none=True,
+)
 async def chat_completions(
     request: Request, payload: ChatCompletionRequest
 ) -> ChatCompletionResponse:
