@@ -1,48 +1,74 @@
 # Sovereign RAG Gateway Differentiation Strategy
 
+Claim date: 2026-02-17  
+Last revalidated: 2026-02-17
+
 ## Goal
-Define an honest, technical differentiation stance for a Kubernetes-deployable governance gateway in front of LLM providers and RAG connectors.
+Define a technically defensible differentiation stance for a Kubernetes-deployable, OpenAI-compatible gateway that enforces regulated runtime controls for LLM and RAG traffic.
 
 ## Scope and Assumptions
-- First vertical: healthcare-style PHI controls on synthetic data.
-- Deployment model: self-hosted Kubernetes (kind first, cloud second).
-- API posture: OpenAI-compatible endpoints for low adoption friction.
+- Primary buyer: security engineering, SRE, and platform teams operating regulated workloads.
+- Deployment posture: self-hosted Kubernetes first, cloud-managed variants second.
+- Product boundary: runtime policy enforcement + audit evidence, not a full GRC platform.
 
-## Competitor and Adjacent Landscape (Top 10)
+## Top 10 Competitor and Adjacent Tools
 
 | Tool | What it does well | What it misses for this target |
 |---|---|---|
-| LiteLLM Proxy | Broad provider abstraction, routing/fallback, budget controls | Not opinionated around regulated runtime governance and tamper-evident decision provenance |
-| Portkey Gateway | Mature gateway features, guardrails, observability | Strong platform, but less centered on self-hosted compliance evidence chains |
-| Kong AI Gateway | Enterprise-grade policy plugins and traffic controls | Generic governance posture; less healthcare-first PHI workflow and audit lineage defaults |
-| Gloo AI Gateway | Kubernetes-native gateway plus guardrail integration | Less opinionated about end-to-end compliance narrative and policy-to-audit linkage |
-| Envoy AI Gateway | Open source, K8s-native traffic/routing/security controls | Earlier maturity; regulated controls need extra assembly |
-| Helicone AI Gateway | Fast OSS setup, routing/cache/failover ergonomics | Reliability/cost oriented; weaker regulator-facing provenance story |
-| OpenRouter | Multi-provider routing and fallback | Primarily provider orchestration, not tenant governance control plane |
-| Azure APIM GenAI Gateway | Enterprise limits, quotas, semantic cache integration | Platform-centric and cloud-tied; less sovereign multi-cloud portability |
-| NVIDIA NeMo Guardrails | Strong guardrail model for I/O and retrieval rails | Guardrails are not a complete OpenAI-compatible governance gateway |
-| Guardrails AI | Rich validator ecosystem and structured output checks | Library-level safety, not cluster-level in-path governance and audit system |
+| LiteLLM Proxy | Broad model/provider abstraction, retries, fallback, and budget controls | Limited default posture for fail-closed governance and regulator-facing evidence lineage |
+| Portkey | Mature AI gateway controls (routing, guardrails, observability) | Compliance evidence model is less opinionated for self-hosted sovereign operations |
+| Kong AI Gateway | Enterprise API gateway maturity, policy plugins, traffic controls | AI governance is extensible but not purpose-built for LLM-specific audit chain semantics |
+| Gloo AI Gateway | Kubernetes-native gateway and guardrail integrations | Requires additional composition for end-to-end runtime compliance evidence |
+| Envoy AI Gateway | Open-source, policy/routing foundation at edge and mesh layers | Earlier ecosystem maturity for regulated LLM governance workflows |
+| Cloudflare AI Gateway | Strong edge reliability, analytics, and request controls | Cloud-tied posture can be a blocker for strict sovereign hosting constraints |
+| Azure APIM GenAI Gateway | Enterprise controls, quotas, safety and governance integration | Platform coupling and less portability for multi-cloud sovereign deployments |
+| NVIDIA NeMo Guardrails | Strong guardrail patterns for dialog and retrieval rails | Guardrails are not a full in-path governance gateway with tenant audit lineage |
+| Guardrails AI | Flexible validator ecosystem and structured output checks | Library-centric control model, not a centralized runtime enforcement plane |
+| OpenRouter (adjacent) | Multi-provider routing and fallback ergonomics | Focused on provider orchestration, not regulated policy enforcement and evidence trails |
 
-## Honest Gap Assessment (What We Must Execute Well)
-- OPA decision quality can become policy sprawl without strong conventions and test discipline.
-- Regex-first PHI redaction has false positives/negatives; benchmark transparency is mandatory.
-- Full OpenAI API parity is expensive; scope should remain explicit by version.
-- Compliance claims require operational evidence, not architecture diagrams.
+## Source Mapping
+All competitor claims above map to primary references in `/Users/ogulcanaydogan/Desktop/Projects/YaPAY/Sovereign-RAG-Gateway/docs/research/landscape-sources.md`.
+
+## Honest Gap Assessment (Execution Risks)
+- Policy quality risk: OPA policies can drift into inconsistent behavior without strict fixture coverage and review gates.
+- Redaction accuracy risk: regex-first redaction has measurable false positives and false negatives.
+- API parity risk: OpenAI compatibility beyond core endpoints can expand scope quickly.
+- Evidence risk: audit credibility depends on reproducible artifacts, not narrative claims.
 
 ## Unique Wedge (3 Pillars)
-1. In-path governance, fail-closed by default.
-2. Evidence-grade traceability with immutable audit hash chain.
-3. Regulated RAG control plane with connector policy checks and citations.
+1. Fail-closed, in-path governance.
+   - Every request is evaluated before retrieval and provider egress.
+   - Policy backend unavailability defaults to deterministic deny behavior.
+2. Tamper-evident decision lineage.
+   - Each request produces decision artifacts linked by request ID and policy hash.
+   - Forensic replay can reconstruct auth, policy, transform, and provider route path.
+3. Regulated RAG control boundary.
+   - Source authorization, classification-aware redaction, and citation constraints are enforced in one runtime boundary.
 
-## Differentiation by Buyer Role
-- CISO/Security: deterministic policy enforcement and tamper-evident auditability.
-- SRE/Platform: one API edge for limits, routing, observability, and incident replay.
-- Compliance/Privacy: measurable leakage reduction with reproducible tests.
+## Positioning by Buyer
+- Security leadership: deterministic controls and replayable evidence for incident and audit scrutiny.
+- SRE/platform: one enforcement plane for auth, routing, budget, and policy outcomes.
+- Compliance/privacy: measurable reduction of leakage risk with explicit false-positive/false-negative reporting.
 
-## Positioning Statement
-Sovereign RAG Gateway is the runtime governance control plane for regulated LLM and RAG traffic: enforce policy before data leaves, prove every decision after the fact, and operate it with standard Kubernetes/SRE workflows.
+## Publishable Benchmark Angle
+### Theme
+Governance Yield vs Performance Overhead.
 
-## Proof Requirements for Credibility
-- Public benchmark runs with raw outputs, not only summary charts.
-- Versioned policy/audit schemas and deterministic failure behavior.
-- Reproducible deploy + demo steps that external teams can rerun.
+### Research Question
+How much leakage/authorization risk reduction can in-path governance deliver relative to the latency and cost overhead it introduces?
+
+### Experimental Design
+- Control: direct provider calls.
+- Treatment A: gateway observe mode.
+- Treatment B: gateway enforce + redaction.
+- Treatment C: gateway enforce + redaction + policy-scoped RAG.
+
+### Publishability Requirements
+- Release raw CSV/JSON outputs and reproducibility manifest for each run.
+- Report confidence intervals for key rates (leakage, deny precision/recall).
+- Publish failure cases and benchmark limitations, not score-only summaries.
+
+## Non-Claims
+- No claim of perfect PHI detection accuracy.
+- No claim of full provider API parity in early versions.
+- No claim that gateway controls replace secure SDLC or data governance programs.

@@ -12,19 +12,32 @@
     "node_type": "kind-default",
     "node_count": 3
   },
+  "stats": {
+    "sample_size": 0,
+    "runs_count": 0,
+    "confidence_level": 0.95
+  },
   "metrics": {
     "requests_total": 0,
     "errors_total": 0,
     "leakage_rate": 0.0,
+    "leakage_rate_ci95_low": 0.0,
+    "leakage_rate_ci95_high": 0.0,
     "redaction_false_positive_rate": 0.0,
+    "redaction_false_positive_rate_ci95_low": 0.0,
+    "redaction_false_positive_rate_ci95_high": 0.0,
     "policy_deny_precision": 0.0,
     "policy_deny_recall": 0.0,
+    "policy_deny_f1": 0.0,
+    "policy_deny_f1_ci95_low": 0.0,
+    "policy_deny_f1_ci95_high": 0.0,
+    "citation_integrity_rate": 0.0,
+    "citation_integrity_rate_ci95_low": 0.0,
+    "citation_integrity_rate_ci95_high": 0.0,
     "latency_ms_p50": 0.0,
     "latency_ms_p95": 0.0,
     "latency_ms_p99": 0.0,
-    "cost_drift_pct": 0.0,
-    "citation_presence_rate": 0.0,
-    "groundedness_score": 0.0
+    "cost_drift_pct": 0.0
   }
 }
 ```
@@ -38,6 +51,7 @@ Columns:
 - `classification`
 - `is_rag`
 - `policy_decision`
+- `policy_reason`
 - `redaction_count`
 - `provider`
 - `model`
@@ -48,10 +62,12 @@ Columns:
 - `cost_usd`
 - `leakage_detected`
 - `has_citations`
+- `citation_integrity_pass`
 
 ## File: `policy_eval.csv`
 Columns:
 - `case_id`
+- `scenario`
 - `expected_decision`
 - `actual_decision`
 - `deny_reason`
@@ -67,8 +83,14 @@ Columns:
   "image_digest": "string",
   "opa_policy_bundle_sha256": "string",
   "dataset_seed": 0,
+  "benchmark_manifest_sha256": "string",
   "runner": "github-actions",
   "started_at": "RFC3339",
   "finished_at": "RFC3339"
 }
 ```
+
+## Validation Rules
+- Summary metrics must be recomputable from raw CSV files.
+- CI fields must use the confidence level declared under `stats.confidence_level`.
+- Any missing required artifact invalidates the benchmark run.

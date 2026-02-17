@@ -1,22 +1,22 @@
 # Why Sovereign RAG Gateway Exists (Security and SRE Narrative)
 
-Most AI gateways optimize interoperability and uptime. Regulated teams need a stricter property: deterministic control over what data can leave the boundary, who can invoke models, which retrieval sources are allowed, and why a request was approved.
+Regulated AI systems fail in predictable ways when governance is bolted on after runtime traffic leaves the boundary. One component handles redaction, another handles policy checks, another handles routing, and logs are scattered across services. During incidents, teams cannot prove whether controls were actually enforced at decision time or only observed later.
 
-Today, many teams bolt governance onto the side. They redact in one service, run policy checks in another, route requests elsewhere, and hope logs can be stitched together after incidents. That architecture fails under audit and during outages because control and evidence are fragmented.
+Sovereign RAG Gateway exists to move governance into the hot path and make the decision trail inspectable.
 
-Sovereign RAG Gateway exists to make governance a runtime behavior, not a compliance afterthought.
+For every request, identity and classification context are attached early, policy is evaluated before retrieval/provider egress, and transform decisions are recorded with request-linked evidence. This changes security posture from best-effort controls to deterministic control points.
 
-Every request carries tenant, user, and classification context.
-Every request is policy-evaluated before retrieval and before provider egress.
-Every request can be transformed, constrained, or denied with deterministic reasons.
-Every response path is recorded with request-linked audit and observability context.
+For security teams, the practical benefit is not abstract "AI safety" language. The benefit is concrete: fewer unknowns in incident response and fewer unprovable controls in audits. You can answer who requested what, which policy version evaluated it, what transformations were applied, what route was selected, and why the decision was allow or deny.
 
-If policy evaluation is unavailable, requests fail closed. That default is deliberate. In regulated environments, partial governance is usually worse than explicit denial because operators lose trust in control boundaries.
+For SRE teams, this consolidates operational behavior that is usually spread across application code and ad hoc middleware. A single gateway path can enforce auth context requirements, runtime policy decisions, budget/rate constraints, and policy-scoped retrieval behavior while preserving OpenAI-compatible request surfaces for application teams.
 
-For SRE teams, this is also an operations simplification. Instead of per-application safety logic, teams get a single enforcement point that standardizes authentication, budget/rate controls, policy enforcement, and provider routing. Incident response becomes faster because one request ID can reconstruct the full path: auth context, policy decision, redaction statistics, provider selection, latency, and cost.
+The project is intentionally opinionated about failure behavior. If policy evaluation is unavailable, fail closed. In regulated environments, silent fallback to permissive behavior creates larger incident and audit risk than explicit denial.
 
-This project does not promise perfect security. PHI detection is probabilistic and policy quality depends on authoring rigor. But it does provide a measurable control loop: benchmark leakage, track false positives, verify policy precision/recall, and publish reproducible results.
+This project also makes a narrow promise: measurable governance outcomes under realistic performance budgets. Benchmarking is designed to publish raw artifacts and methodology, not only aggregate scores, so teams can inspect leakage rates, policy precision/recall, and latency impact directly.
 
-Why this matters now: AI adoption is moving faster than governance implementation in most organizations. Teams need an open, inspectable control plane they can run in their own Kubernetes environment, with evidence that survives architecture review, audit scrutiny, and on-call reality.
+## What this does not claim
+- It does not claim perfect redaction or perfect policy authoring.
+- It does not claim to replace broader data governance, IAM, or secure SDLC controls.
+- It does not claim full API parity with every provider-specific extension.
 
-Sovereign RAG Gateway is that control plane.
+The core claim is narrower and testable: enforce policy before egress, preserve evidence for replay, and keep overhead within explicit SRE budgets.
