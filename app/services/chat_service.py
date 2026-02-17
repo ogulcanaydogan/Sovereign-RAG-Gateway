@@ -1,6 +1,8 @@
 import logging
+from datetime import UTC, datetime
 from hashlib import sha256
 from time import perf_counter
+from uuid import uuid4
 
 from fastapi import Request
 
@@ -14,6 +16,7 @@ from app.models.openai import (
     EmbeddingsResponse,
 )
 from app.policy.client import OPAClient, PolicyTimeoutError, PolicyValidationError
+from app.policy.models import PolicyDecision
 from app.policy.transforms import apply_transforms
 from app.providers.base import ChatProvider, ProviderError
 from app.redaction.engine import RedactionEngine
@@ -58,18 +61,9 @@ class ChatService:
             },
         }
 
-        try:
-            decision = self._policy_client.evaluate(policy_input)
-        except PolicyTimeoutError as exc:
-            raise AppError(
-                503, "policy_unavailable", "policy", "Policy service unavailable"
-            ) from exc
-        except PolicyValidationError as exc:
-            raise AppError(
-                503, "policy_contract_invalid", "policy", "Policy decision contract invalid"
-            ) from exc
+        decision = self._resolve_policy_decision(policy_input, request_id=request_id)
 
-        if not decision.allow:
+        if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
             raise AppError(403, "policy_denied", "policy", reason)
 
@@ -91,7 +85,7 @@ class ChatService:
             raise self._app_error_from_provider_error(exc) from exc
         response = ChatCompletionResponse.model_validate(provider_result)
 
-        policy_decision_label = "transform" if decision.transforms else "allow"
+        policy_decision_label = self._policy_decision_label(decision)
         tokens_in = response.usage.prompt_tokens
         tokens_out = response.usage.completion_tokens
         cost_usd = round((tokens_in + tokens_out) * 0.000001, 8)
@@ -165,18 +159,9 @@ class ChatService:
             "request_metadata": {"request_id": request_id},
         }
 
-        try:
-            decision = self._policy_client.evaluate(policy_input)
-        except PolicyTimeoutError as exc:
-            raise AppError(
-                503, "policy_unavailable", "policy", "Policy service unavailable"
-            ) from exc
-        except PolicyValidationError as exc:
-            raise AppError(
-                503, "policy_contract_invalid", "policy", "Policy decision contract invalid"
-            ) from exc
+        decision = self._resolve_policy_decision(policy_input, request_id=request_id)
 
-        if not decision.allow:
+        if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
             raise AppError(403, "policy_denied", "policy", reason)
 
@@ -203,7 +188,7 @@ class ChatService:
         tokens_in = response.usage.prompt_tokens
         tokens_out = 0
         cost_usd = round(tokens_in * 0.0000002, 8)
-        policy_decision_label = "transform" if decision.transforms else "allow"
+        policy_decision_label = self._policy_decision_label(decision)
 
         audit_event = {
             "request_id": request_id,
@@ -259,6 +244,18 @@ class ChatService:
             "provider": "ok",
         }
 
+    def list_models(self) -> dict[str, object]:
+        data = [
+            {
+                "id": model,
+                "object": "model",
+                "created": 0,
+                "owned_by": "srg",
+            }
+            for model in self._settings.configured_models
+        ]
+        return {"object": "list", "data": data}
+
     @staticmethod
     def request_fingerprint(messages: list[dict[str, str]]) -> str:
         serialized = "|".join(f"{m['role']}:{m['content']}" for m in messages)
@@ -269,3 +266,44 @@ class ChatService:
         if exc.status_code in {429, 502, 503}:
             return AppError(exc.status_code, exc.code, exc.error_type, exc.message)
         return AppError(502, "provider_upstream_error", "provider", exc.message)
+
+    def _resolve_policy_decision(
+        self, policy_input: dict[str, object], request_id: str
+    ) -> PolicyDecision:
+        try:
+            return self._policy_client.evaluate(policy_input)
+        except PolicyTimeoutError as exc:
+            if self._settings.opa_mode == "observe":
+                return self._observe_mode_decision(request_id, f"policy_timeout:{exc}")
+            raise AppError(
+                503, "policy_unavailable", "policy", "Policy service unavailable"
+            ) from exc
+        except PolicyValidationError as exc:
+            if self._settings.opa_mode == "observe":
+                return self._observe_mode_decision(
+                    request_id, f"policy_contract_invalid:{exc}"
+                )
+            raise AppError(
+                503, "policy_contract_invalid", "policy", "Policy decision contract invalid"
+            ) from exc
+
+    def _observe_mode_decision(self, request_id: str, reason: str) -> PolicyDecision:
+        logger.warning(
+            "policy_observe_bypass",
+            extra={"request_id": request_id, "policy_decision": "observe"},
+        )
+        return PolicyDecision(
+            decision_id=f"observe-{uuid4()}",
+            allow=True,
+            deny_reason=reason,
+            policy_hash="observe-mode",
+            evaluated_at=datetime.now(UTC).isoformat(),
+            transforms=[],
+        )
+
+    def _policy_decision_label(self, decision: PolicyDecision) -> str:
+        if self._settings.opa_mode == "observe" and decision.deny_reason:
+            return "observe"
+        if decision.transforms:
+            return "transform"
+        return "allow"

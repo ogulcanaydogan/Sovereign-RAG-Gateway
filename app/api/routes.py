@@ -24,6 +24,12 @@ def readyz(request: Request) -> dict[str, object]:
     return {"status": status, "dependencies": dependencies}
 
 
+@router.get("/v1/models")
+def list_models(request: Request) -> dict[str, object]:
+    service: ChatService = request.app.state.chat_service
+    return service.list_models()
+
+
 @router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
     request: Request, payload: ChatCompletionRequest

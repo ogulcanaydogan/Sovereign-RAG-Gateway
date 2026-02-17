@@ -11,8 +11,10 @@ class Settings(BaseSettings):
     env: str = "dev"
     api_keys: str = Field(default="dev-key", description="Comma separated API keys")
     default_model: str = "gpt-4o-mini"
+    model_catalog: str = "gpt-4o-mini,text-embedding-3-small"
     opa_timeout_ms: int = 150
     opa_mode: str = "enforce"
+    opa_url: str | None = None
     opa_simulate_timeout: bool = False
     log_level: str = "INFO"
     redaction_enabled: bool = True
@@ -23,6 +25,10 @@ class Settings(BaseSettings):
     @property
     def api_key_set(self) -> set[str]:
         return {item.strip() for item in self.api_keys.split(",") if item.strip()}
+
+    @property
+    def configured_models(self) -> list[str]:
+        return [item.strip() for item in self.model_catalog.split(",") if item.strip()]
 
 
 @lru_cache

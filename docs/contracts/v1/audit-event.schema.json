@@ -35,7 +35,7 @@
     "provider": {"type": "string"},
     "policy_decision": {
       "type": "string",
-      "enum": ["allow", "deny", "transform"]
+      "enum": ["allow", "deny", "transform", "observe"]
     },
     "deny_reason": {"type": "string"},
     "transforms_applied": {

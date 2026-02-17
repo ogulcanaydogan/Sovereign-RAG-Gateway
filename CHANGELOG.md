@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.0-alpha.2 - 2026-02-17
+- Added `GET /v1/models` endpoint and OpenAI SDK compatibility coverage for model listing.
+- Added policy observe-mode handling so deny/timeout can be audited as `observe` without blocking requests.
+- Added optional remote OPA evaluation path with schema-safe fallback behavior.
+- Expanded benchmark runner with scenario matrix (`direct_provider`, `observe_mode`, `enforce_redact`) and JSONL dataset input.
+- Added integration tests for models endpoint and observe-mode policy flow.
+
 ## v0.1.0-alpha.1 - 2026-02-17
 - Initialized FastAPI gateway repository with CI, linting, type-checking, and tests.
 - Added `/healthz`, `/readyz`, `/v1/chat/completions`, and `/v1/embeddings` endpoints.

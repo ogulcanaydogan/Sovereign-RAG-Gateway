@@ -34,6 +34,14 @@ curl -s http://127.0.0.1:8000/v1/embeddings \
   -d '{"model":"text-embedding-3-small","input":["hello","world"]}'
 ```
 
+```bash
+curl -s http://127.0.0.1:8000/v1/models \
+  -H 'Authorization: Bearer dev-key' \
+  -H 'x-srg-tenant-id: tenant-a' \
+  -H 'x-srg-user-id: user-1' \
+  -H 'x-srg-classification: public'
+```
+
 ## Compose Smoke
 ```bash
 ./scripts/compose_smoke.sh
