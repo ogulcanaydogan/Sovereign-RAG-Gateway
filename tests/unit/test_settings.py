@@ -1,3 +1,5 @@
+import pytest
+
 from app.config.settings import Settings
 
 
@@ -11,7 +13,8 @@ def test_rag_allowed_connector_set_parses_values() -> None:
     assert settings.rag_allowed_connector_set == {"filesystem", "postgres", "s3"}
 
 
-def test_postgres_settings_defaults() -> None:
+def test_postgres_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SRG_RAG_POSTGRES_TABLE", raising=False)
     settings = Settings()
     assert settings.rag_postgres_table == "rag_chunks"
     assert settings.rag_embedding_dim == 16
