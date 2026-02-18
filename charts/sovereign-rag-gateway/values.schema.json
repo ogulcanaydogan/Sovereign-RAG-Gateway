@@ -140,7 +140,9 @@
         "ragEnabled",
         "ragAllowedConnectors",
         "logLevel",
-        "auditLogPath"
+        "auditLogPath",
+        "metricsEnabled",
+        "providerFallbackEnabled"
       ],
       "properties": {
         "apiKeys": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
@@ -153,7 +155,9 @@
         "ragEnabled": { "type": "boolean" },
         "ragAllowedConnectors": { "type": "string", "minLength": 1 },
         "logLevel": { "type": "string", "minLength": 1 },
-        "auditLogPath": { "type": "string", "minLength": 1 }
+        "auditLogPath": { "type": "string", "minLength": 1 },
+        "metricsEnabled": { "type": "boolean" },
+        "providerFallbackEnabled": { "type": "boolean" }
       }
     },
     "probes": {
