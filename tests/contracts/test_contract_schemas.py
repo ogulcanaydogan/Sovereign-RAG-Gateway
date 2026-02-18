@@ -14,6 +14,7 @@ def test_policy_schema_fixture() -> None:
         "allow": True,
         "policy_hash": "hash",
         "evaluated_at": "2026-02-17T00:00:00Z",
+        "connector_constraints": {"allowed_connectors": ["filesystem", "postgres"]},
         "transforms": [],
     }
     validate(instance=fixture, schema=schema)

@@ -12,6 +12,7 @@ from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
 from app.providers.stub import StubProvider
 from app.rag.connectors.filesystem import FilesystemConnector
+from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.registry import ConnectorRegistry
 from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
@@ -22,7 +23,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.1.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.2.0-rc1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -32,6 +33,15 @@ def create_app() -> FastAPI:
         "filesystem",
         FilesystemConnector(index_path=settings.rag_filesystem_index_path),
     )
+    if settings.rag_postgres_dsn:
+        connector_registry.register(
+            "postgres",
+            PostgresPgvectorConnector(
+                dsn=settings.rag_postgres_dsn,
+                table=settings.rag_postgres_table,
+                embedding_dim=settings.rag_embedding_dim,
+            ),
+        )
 
     chat_service = ChatService(
         settings=settings,

@@ -62,6 +62,23 @@ python3 scripts/generate_synthetic_healthcare_corpus.py --output-dir benchmarks/
 python3 scripts/rag_ingest.py --input-dir benchmarks/data/synthetic_corpus --output artifacts/rag/filesystem_index.jsonl
 ```
 
+```bash
+python3 scripts/rag_ingest.py \
+  --connector postgres \
+  --input-dir benchmarks/data/synthetic_corpus \
+  --postgres-dsn postgresql://postgres:postgres@localhost:5432/srg_test \
+  --postgres-table rag_chunks
+```
+
+## Citation Eval Gate
+```bash
+python3 scripts/eval_citations.py \
+  --dataset benchmarks/data/citation_eval.jsonl \
+  --output-json artifacts/benchmarks/citation_eval.json \
+  --output-markdown docs/benchmarks/reports/citations-latest.md \
+  --threshold 0.95
+```
+
 ## Compose Smoke
 ```bash
 ./scripts/compose_smoke.sh
@@ -84,6 +101,6 @@ python3 scripts/rag_ingest.py --input-dir benchmarks/data/synthetic_corpus --out
 - Wedge: policy + redaction + audit chain + constrained RAG in one deployable control plane.
 
 ## Immediate Next Steps
-1. Convert demo stories into `examples/` runnable scripts.
-2. Expand benchmark harness to run all scenarios in `docs/benchmarks/output-schema.md`.
-3. Publish first baseline benchmark report under `docs/benchmarks/reports/`.
+1. Add pgvector retrieval ranking quality tests against larger synthetic corpora.
+2. Implement provider-backed embedding generation for ingestion pipelines.
+3. Add `v0.2.0-rc1` release notes and migration checks.

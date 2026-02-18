@@ -8,6 +8,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: srg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SRG_TEST_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
+      SRG_RAG_ALLOWED_CONNECTORS: filesystem,postgres
+      SRG_RAG_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
+      SRG_OPA_SIMULATE_TIMEOUT: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,5 +42,16 @@ jobs:
         run: uv run mypy app scripts
       - name: Validate contracts
         run: uv run python scripts/validate_schemas.py
+      - name: Prepare RAG fixtures
+        run: |
+          uv run python scripts/generate_synthetic_healthcare_corpus.py --output-dir benchmarks/data/synthetic_corpus
+          uv run python scripts/rag_ingest.py --input-dir benchmarks/data/synthetic_corpus --output artifacts/rag/filesystem_index.jsonl
+      - name: Citation eval gate
+        run: |
+          uv run python scripts/eval_citations.py \
+            --dataset benchmarks/data/citation_eval.jsonl \
+            --output-json artifacts/benchmarks/citation_eval.json \
+            --output-markdown docs/benchmarks/reports/citations-latest.md \
+            --threshold 0.95
       - name: Tests
         run: uv run pytest
