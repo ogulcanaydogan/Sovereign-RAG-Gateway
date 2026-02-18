@@ -1,0 +1,47 @@
+image:
+  repository: ghcr.io/ogulcanaydogan/sovereign-rag-gateway
+  tag: v0.2.0
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+rbac:
+  create: true
+
+env:
+  apiKeys:
+    - REPLACE_ME
+  env: prod
+  defaultModel: gpt-4o-mini
+  modelCatalog: gpt-4o-mini,text-embedding-3-small
+  providerName: primary-openai
+  opaMode: enforce
+  redactionEnabled: true
+  ragEnabled: true
+  ragAllowedConnectors: filesystem,postgres,s3
+  logLevel: INFO
+  auditLogPath: /tmp/audit/events.jsonl
+  metricsEnabled: true
+  providerFallbackEnabled: true
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+networkPolicy:
+  enabled: true
+  allowIngressFromSameNamespace: false
+  allowDNS: true
+  extraEgressCIDRs: []

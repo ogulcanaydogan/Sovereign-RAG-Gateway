@@ -12,11 +12,15 @@ from app.core.logging import configure_logging
 from app.middleware.auth import AuthMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
+from app.providers.anthropic import AnthropicProvider
+from app.providers.azure_openai import AzureOpenAIProvider
+from app.providers.base import ChatProvider
 from app.providers.http_openai import HTTPOpenAIProvider
 from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
 from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
+from app.rag.connectors.s3 import S3Connector
 from app.rag.embeddings import (
     EmbeddingGenerator,
     HashEmbeddingGenerator,
@@ -63,11 +67,32 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
 
     if settings.provider_config:
         for entry in json_mod.loads(settings.provider_config):
-            provider = HTTPOpenAIProvider(
-                base_url=entry["base_url"],
-                api_key=entry["api_key"],
-                timeout_s=entry.get("timeout_s", 30.0),
-            )
+            provider_type = str(entry.get("type", "openai_compatible")).strip().lower()
+            provider: ChatProvider
+            if provider_type in {"openai_compatible", "openai"}:
+                provider = HTTPOpenAIProvider(
+                    base_url=entry["base_url"],
+                    api_key=entry["api_key"],
+                    timeout_s=entry.get("timeout_s", 30.0),
+                )
+            elif provider_type == "azure_openai":
+                provider = AzureOpenAIProvider(
+                    endpoint=entry["endpoint"],
+                    api_key=entry["api_key"],
+                    api_version=entry.get("api_version", "2024-10-21"),
+                    timeout_s=entry.get("timeout_s", 30.0),
+                )
+            elif provider_type == "anthropic":
+                provider = AnthropicProvider(
+                    api_key=entry["api_key"],
+                    base_url=entry.get("base_url", "https://api.anthropic.com"),
+                    anthropic_version=entry.get("anthropic_version", "2023-06-01"),
+                    timeout_s=entry.get("timeout_s", 30.0),
+                )
+            else:
+                raise RuntimeError(
+                    f"Unsupported provider type in SRG_PROVIDER_CONFIG: {provider_type}"
+                )
             cost_cfg = entry.get("cost", {})
             registry.register(
                 ProviderEntry(
@@ -111,6 +136,16 @@ def create_app() -> FastAPI:
                 table=settings.rag_postgres_table,
                 embedding_dim=settings.rag_embedding_dim,
                 embedding_generator=embedding_generator,
+            ),
+        )
+    if settings.rag_s3_bucket:
+        connector_registry.register(
+            "s3",
+            S3Connector(
+                bucket=settings.rag_s3_bucket,
+                index_key=settings.rag_s3_index_key,
+                region=settings.rag_s3_region,
+                endpoint_url=settings.rag_s3_endpoint_url,
             ),
         )
 

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     rag_filesystem_index_path: Path = Path("artifacts/rag/filesystem_index.jsonl")
     rag_postgres_dsn: str | None = None
     rag_postgres_table: str = "rag_chunks"
+    rag_s3_bucket: str | None = None
+    rag_s3_index_key: str = "rag/index.jsonl"
+    rag_s3_region: str | None = None
+    rag_s3_endpoint_url: str | None = None
     rag_embedding_dim: int = 16
     rag_embedding_source: str = "hash"
     rag_embedding_endpoint: str | None = None

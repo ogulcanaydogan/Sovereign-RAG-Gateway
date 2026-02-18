@@ -76,7 +76,7 @@ def test_route_with_fallback_success() -> None:
     registry = _make_registry(
         ProviderEntry(name="primary", provider=stub, priority=0),
     )
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         route_with_fallback(
             registry, "primary", "gpt-4o-mini", [{"role": "user", "content": "hi"}], None
         )
@@ -94,7 +94,7 @@ def test_route_with_fallback_on_429() -> None:
         ProviderEntry(name="secondary", provider=stub, priority=10),
     )
     with pytest.raises(ProviderError):
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             route_with_fallback(
                 registry,
                 "primary",
@@ -108,7 +108,7 @@ def test_route_with_fallback_on_429() -> None:
 def test_route_no_providers_raises() -> None:
     registry = ProviderRegistry()
     with pytest.raises(ProviderError, match="No enabled providers"):
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             route_with_fallback(
                 registry, "missing", "gpt-4o-mini", [{"role": "user", "content": "hi"}], None
             )
