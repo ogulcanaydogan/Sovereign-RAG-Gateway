@@ -1,0 +1,17 @@
+apiVersion: v2
+name: sovereign-rag-gateway
+description: Policy-first OpenAI-compatible gateway for regulated AI workloads
+type: application
+version: 0.1.0
+appVersion: "0.2.0-rc1"
+keywords:
+  - llm
+  - gateway
+  - rag
+  - policy
+home: https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway
+sources:
+  - https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway
+maintainers:
+  - name: ogulcanaydogan
+license: Apache-2.0

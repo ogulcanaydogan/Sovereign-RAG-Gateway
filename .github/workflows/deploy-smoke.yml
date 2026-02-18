@@ -1,0 +1,66 @@
+name: deploy-smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  kind-helm-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: srg-ci
+          config: deploy/kind/kind-config.yaml
+
+      - name: Build local image
+        run: docker build -t srg-gateway:ci .
+
+      - name: Load image into kind
+        run: kind load docker-image --name srg-ci srg-gateway:ci
+
+      - name: Helm lint and template
+        run: |
+          helm lint charts/sovereign-rag-gateway
+          helm template srg charts/sovereign-rag-gateway >/tmp/srg-helm-render.yaml
+
+      - name: Deploy chart
+        run: |
+          helm upgrade --install srg charts/sovereign-rag-gateway \
+            --namespace srg-system \
+            --create-namespace \
+            --set image.repository=srg-gateway \
+            --set image.tag=ci \
+            --set image.pullPolicy=IfNotPresent \
+            --set env.apiKeys[0]=test-key
+
+      - name: Wait for rollout
+        run: timeout 200s kubectl -n srg-system rollout status deployment/srg-sovereign-rag-gateway --timeout=180s
+
+      - name: Endpoint smoke tests
+        run: |
+          kubectl -n srg-system port-forward svc/srg-sovereign-rag-gateway 18080:80 >/tmp/srg-port-forward.log 2>&1 &
+          PF_PID=$!
+          trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
+          sleep 6
+          curl -sf http://127.0.0.1:18080/healthz >/dev/null
+          curl -sf http://127.0.0.1:18080/readyz >/dev/null
+          curl -sf http://127.0.0.1:18080/v1/models \
+            -H 'Authorization: Bearer test-key' \
+            -H 'x-srg-tenant-id: tenant-a' \
+            -H 'x-srg-user-id: user-1' \
+            -H 'x-srg-classification: public' >/dev/null
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          kubectl -n srg-system get pods -o wide || true
+          kubectl -n srg-system describe deployment srg-sovereign-rag-gateway || true
+          kubectl -n srg-system logs deployment/srg-sovereign-rag-gateway --tail=200 || true

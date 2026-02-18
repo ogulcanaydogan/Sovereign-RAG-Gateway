@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: observability
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: llm-slo-agent
+        static_configs:
+          - targets:
+              - llm-slo-agent-metrics.llm-slo-system.svc.cluster.local:2112
+      - job_name: otel-collector
+        static_configs:
+          - targets:
+              - otel-collector.observability.svc.cluster.local:8888
