@@ -42,7 +42,7 @@ jobs:
             --set env.apiKeys[0]=test-key
 
       - name: Wait for rollout
-        run: kubectl -n srg-system rollout status deployment/srg-sovereign-rag-gateway --timeout=180s
+        run: timeout 200s kubectl -n srg-system rollout status deployment/srg-sovereign-rag-gateway --timeout=180s
 
       - name: Endpoint smoke tests
         run: |
