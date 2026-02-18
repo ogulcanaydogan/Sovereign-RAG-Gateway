@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: srg-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sovereign-rag-gateway
+  source:
+    repoURL: https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway.git
+    targetRevision: main
+    path: charts/sovereign-rag-gateway
+    helm:
+      valueFiles:
+        - ../../deploy/gitops/envs/dev/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: srg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

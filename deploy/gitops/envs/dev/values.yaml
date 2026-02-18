@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  tag: latest
+
+env:
+  apiKeys:
+    - dev-key
+  env: dev
+  providerName: stub
+  opaMode: observe
+  logLevel: DEBUG
+  metricsEnabled: true
+  providerFallbackEnabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false

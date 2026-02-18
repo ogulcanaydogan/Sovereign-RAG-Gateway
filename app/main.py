@@ -1,3 +1,5 @@
+import json as json_mod
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -10,6 +12,8 @@ from app.core.logging import configure_logging
 from app.middleware.auth import AuthMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
+from app.providers.http_openai import HTTPOpenAIProvider
+from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
 from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
@@ -44,11 +48,48 @@ def _build_rag_embedding_generator(settings: Settings, embedding_dim: int) -> Em
     raise RuntimeError(f"Unsupported SRG_RAG_EMBEDDING_SOURCE value: {source}")
 
 
+def _build_provider_registry(settings: Settings) -> ProviderRegistry:
+    registry = ProviderRegistry()
+    stub = StubProvider(embedding_dim=settings.rag_embedding_dim)
+
+    registry.register(
+        ProviderEntry(
+            name="stub",
+            provider=stub,
+            cost=ProviderCost(input_per_token=0.000001, output_per_token=0.000001),
+            priority=100,
+        )
+    )
+
+    if settings.provider_config:
+        for entry in json_mod.loads(settings.provider_config):
+            provider = HTTPOpenAIProvider(
+                base_url=entry["base_url"],
+                api_key=entry["api_key"],
+                timeout_s=entry.get("timeout_s", 30.0),
+            )
+            cost_cfg = entry.get("cost", {})
+            registry.register(
+                ProviderEntry(
+                    name=entry["name"],
+                    provider=provider,
+                    cost=ProviderCost(
+                        input_per_token=cost_cfg.get("input_per_token", 0.0),
+                        output_per_token=cost_cfg.get("output_per_token", 0.0),
+                    ),
+                    priority=entry.get("priority", 50),
+                    enabled=entry.get("enabled", True),
+                )
+            )
+
+    return registry
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.2.0-rc1")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.3.0-rc1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -73,16 +114,25 @@ def create_app() -> FastAPI:
             ),
         )
 
+    provider_registry = _build_provider_registry(settings)
+    primary_entry = provider_registry.get(settings.provider_name)
+    primary_provider = (
+        primary_entry.provider
+        if primary_entry
+        else StubProvider(embedding_dim=settings.rag_embedding_dim)
+    )
+
     chat_service = ChatService(
         settings=settings,
         policy_client=OPAClient(settings),
-        provider=StubProvider(embedding_dim=settings.rag_embedding_dim),
+        provider=primary_provider,
         redaction_engine=RedactionEngine(),
         audit_writer=AuditWriter(settings),
         retrieval_orchestrator=RetrievalOrchestrator(
             registry=connector_registry,
             default_k=settings.rag_default_top_k,
         ),
+        provider_registry=provider_registry,
     )
     app.state.chat_service = chat_service
 

@@ -1,0 +1,28 @@
+replicaCount: 2
+
+image:
+  tag: latest
+
+env:
+  apiKeys:
+    - staging-key
+  env: staging
+  providerName: stub
+  opaMode: enforce
+  logLevel: INFO
+  metricsEnabled: true
+  providerFallbackEnabled: true
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70

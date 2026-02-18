@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sovereign-rag-gateway
+  namespace: argocd
+spec:
+  description: Sovereign RAG Gateway deployment project
+  sourceRepos:
+    - https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway.git
+  destinations:
+    - namespace: srg-system
+      server: https://kubernetes.default.svc
+    - namespace: srg-staging
+      server: https://kubernetes.default.svc
+    - namespace: srg-prod
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: apps
+      kind: "*"
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: external-secrets.io
+      kind: ExternalSecret

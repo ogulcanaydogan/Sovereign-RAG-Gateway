@@ -1,0 +1,33 @@
+replicaCount: 3
+
+image:
+  tag: v0.3.0
+
+env:
+  apiKeys:
+    - prod-key-placeholder
+  env: prod
+  providerName: stub
+  opaMode: enforce
+  logLevel: WARNING
+  metricsEnabled: true
+  providerFallbackEnabled: true
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"

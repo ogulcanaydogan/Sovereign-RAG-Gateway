@@ -7,7 +7,7 @@ data:
   providers.yaml: |
     apiVersion: 1
     providers:
-      - name: llm-slo
+      - name: srg
         orgId: 1
         folder: ""
         type: file

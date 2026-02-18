@@ -59,6 +59,14 @@
       "minimum": 0
     },
     "policy_hash": {"type": "string"},
+    "provider_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fallback_chain": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
     "payload_hash": {"type": "string"},
     "prev_hash": {"type": "string"},
     "created_at": {

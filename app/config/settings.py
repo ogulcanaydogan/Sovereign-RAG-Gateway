@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     redaction_enabled: bool = True
     provider_name: str = "stub"
+    provider_config: str = ""
+    provider_fallback_enabled: bool = True
+    metrics_enabled: bool = True
     audit_log_path: Path = Path("artifacts/audit/events.jsonl")
     contracts_dir: Path = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "v1"
 
