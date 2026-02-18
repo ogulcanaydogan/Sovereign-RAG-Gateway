@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import router
 from app.audit.writer import AuditWriter
-from app.config.settings import get_settings
+from app.config.settings import Settings, get_settings
 from app.core.errors import AppError, app_error_response, request_id_from_request
 from app.core.logging import configure_logging
 from app.middleware.auth import AuthMiddleware
@@ -13,10 +13,35 @@ from app.policy.client import OPAClient
 from app.providers.stub import StubProvider
 from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
+from app.rag.embeddings import (
+    EmbeddingGenerator,
+    HashEmbeddingGenerator,
+    HTTPOpenAIEmbeddingGenerator,
+)
 from app.rag.registry import ConnectorRegistry
 from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
 from app.services.chat_service import ChatService
+
+
+def _build_rag_embedding_generator(settings: Settings, embedding_dim: int) -> EmbeddingGenerator:
+    source = settings.rag_embedding_source.strip().lower()
+    if source == "hash":
+        return HashEmbeddingGenerator(embedding_dim=embedding_dim)
+    if source == "http":
+        endpoint = settings.rag_embedding_endpoint
+        if not endpoint:
+            raise RuntimeError("SRG_RAG_EMBEDDING_ENDPOINT is required when source=http")
+        return HTTPOpenAIEmbeddingGenerator(
+            endpoint=endpoint,
+            model=settings.rag_embedding_model,
+            embedding_dim=embedding_dim,
+            api_key=settings.rag_embedding_api_key,
+            tenant_id=settings.rag_embedding_tenant_id,
+            user_id=settings.rag_embedding_user_id,
+            classification=settings.rag_embedding_classification,
+        )
+    raise RuntimeError(f"Unsupported SRG_RAG_EMBEDDING_SOURCE value: {source}")
 
 
 def create_app() -> FastAPI:
@@ -34,19 +59,24 @@ def create_app() -> FastAPI:
         FilesystemConnector(index_path=settings.rag_filesystem_index_path),
     )
     if settings.rag_postgres_dsn:
+        embedding_generator = _build_rag_embedding_generator(
+            settings=settings,
+            embedding_dim=settings.rag_embedding_dim,
+        )
         connector_registry.register(
             "postgres",
             PostgresPgvectorConnector(
                 dsn=settings.rag_postgres_dsn,
                 table=settings.rag_postgres_table,
                 embedding_dim=settings.rag_embedding_dim,
+                embedding_generator=embedding_generator,
             ),
         )
 
     chat_service = ChatService(
         settings=settings,
         policy_client=OPAClient(settings),
-        provider=StubProvider(),
+        provider=StubProvider(embedding_dim=settings.rag_embedding_dim),
         redaction_engine=RedactionEngine(),
         audit_writer=AuditWriter(settings),
         retrieval_orchestrator=RetrievalOrchestrator(

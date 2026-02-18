@@ -90,6 +90,31 @@ Columns:
 }
 ```
 
+## File: `pgvector_ranking_eval.json`
+```json
+{
+  "run_at": "RFC3339",
+  "samples_total": 0,
+  "top_k": 3,
+  "recall_at_k": 0.0,
+  "mrr": 0.0,
+  "results": [
+    {
+      "id": "sample-id",
+      "query": "string",
+      "expected_file_name": "string",
+      "hit": true,
+      "matched_rank": 1,
+      "top_sources": ["file-a.txt", "file-b.txt"]
+    }
+  ]
+}
+```
+
+## File: `pgvector-ranking-latest.md`
+- Markdown summary produced by `scripts/eval_pgvector_ranking.py`.
+- Must include status (`PASS`/`FAIL`), `Recall@k`, and `MRR`.
+
 ## Validation Rules
 - Summary metrics must be recomputable from raw CSV files.
 - CI fields must use the confidence level declared under `stats.confidence_level`.

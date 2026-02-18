@@ -1,11 +1,14 @@
-from hashlib import sha256
 from time import time
 from uuid import uuid4
 
 from app.providers.base import ProviderError
+from app.rag.embeddings import HashEmbeddingGenerator
 
 
 class StubProvider:
+    def __init__(self, embedding_dim: int = 16):
+        self._embedding_generator = HashEmbeddingGenerator(embedding_dim=embedding_dim)
+
     async def chat(
         self,
         model: str,
@@ -47,7 +50,7 @@ class StubProvider:
         data: list[dict[str, object]] = []
         prompt_tokens = 0
         for index, text in enumerate(inputs):
-            vector = self._text_to_vector(text)
+            vector = self._embedding_generator.embed_texts([text])[0]
             prompt_tokens += max(len(text.split()), 1)
             data.append(
                 {
@@ -66,12 +69,6 @@ class StubProvider:
                 "total_tokens": prompt_tokens,
             },
         }
-
-    @staticmethod
-    def _text_to_vector(text: str) -> list[float]:
-        digest = sha256(text.encode("utf-8")).digest()
-        vector = [round((byte - 128) / 128.0, 6) for byte in digest[:16]]
-        return vector
 
     @staticmethod
     def _maybe_raise_provider_error(model: str) -> None:

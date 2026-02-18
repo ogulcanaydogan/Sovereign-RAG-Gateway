@@ -26,6 +26,7 @@ jobs:
       SRG_TEST_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
       SRG_RAG_ALLOWED_CONNECTORS: filesystem,postgres
       SRG_RAG_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
+      SRG_RAG_POSTGRES_TABLE: rag_chunks_ci
       SRG_OPA_SIMULATE_TIMEOUT: "false"
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +47,11 @@ jobs:
         run: |
           uv run python scripts/generate_synthetic_healthcare_corpus.py --output-dir benchmarks/data/synthetic_corpus
           uv run python scripts/rag_ingest.py --input-dir benchmarks/data/synthetic_corpus --output artifacts/rag/filesystem_index.jsonl
+          uv run python scripts/rag_ingest.py \
+            --connector postgres \
+            --input-dir benchmarks/data/synthetic_corpus \
+            --postgres-dsn "$SRG_TEST_POSTGRES_DSN" \
+            --postgres-table "$SRG_RAG_POSTGRES_TABLE"
       - name: Citation eval gate
         run: |
           uv run python scripts/eval_citations.py \
@@ -53,5 +59,16 @@ jobs:
             --output-json artifacts/benchmarks/citation_eval.json \
             --output-markdown docs/benchmarks/reports/citations-latest.md \
             --threshold 0.95
+      - name: PGVector ranking eval gate
+        run: |
+          uv run python scripts/eval_pgvector_ranking.py \
+            --dataset benchmarks/data/pgvector_ranking_eval.jsonl \
+            --postgres-dsn "$SRG_TEST_POSTGRES_DSN" \
+            --postgres-table "$SRG_RAG_POSTGRES_TABLE" \
+            --output-json artifacts/benchmarks/pgvector_ranking_eval.json \
+            --output-markdown docs/benchmarks/reports/pgvector-ranking-latest.md \
+            --threshold 0.8
+      - name: Migration checks
+        run: uv run python scripts/check_migration_v020rc1.py
       - name: Tests
         run: uv run pytest

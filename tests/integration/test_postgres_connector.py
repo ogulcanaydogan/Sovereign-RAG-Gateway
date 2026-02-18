@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from app.rag.connectors.postgres import PostgresPgvectorConnector
+from app.rag.embeddings import HashEmbeddingGenerator, vector_literal
 
 
 def _dsn() -> str:
@@ -20,6 +21,7 @@ def _seed_rows(connector: PostgresPgvectorConnector) -> None:
     if not dsn:
         raise RuntimeError("SRG_TEST_POSTGRES_DSN is not set")
 
+    embedder = HashEmbeddingGenerator(embedding_dim=connector._embedding_dim)
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cursor:
             cursor.execute(f"TRUNCATE TABLE {connector._table}")
@@ -40,7 +42,7 @@ def _seed_rows(connector: PostgresPgvectorConnector) -> None:
                 },
             ]
             for row in rows:
-                vector = connector._vector_literal(connector._text_to_vector(row["text"]))
+                vector = vector_literal(embedder.embed_texts([str(row["text"])])[0])
                 cursor.execute(
                     (
                         f"INSERT INTO {connector._table} "

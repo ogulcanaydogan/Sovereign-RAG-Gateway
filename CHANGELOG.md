@@ -3,7 +3,11 @@
 ## v0.2.0-rc1 - 2026-02-18
 - Added `postgres` pgvector connector with connector registry wiring and policy-aware retrieval gating.
 - Extended ingestion tooling to support pgvector-backed indexing (`--connector postgres`).
+- Added provider-backed embedding generation for ingestion and retrieval (`SRG_RAG_EMBEDDING_SOURCE=http`).
+- Added lexical-hash embedding baseline for deterministic local retrieval without external providers.
 - Added citation evaluation harness and CI gate enforcing citation presence threshold (`>=0.95`).
+- Added pgvector ranking evaluation harness and CI gate enforcing Recall@3 threshold (`>=0.80`).
+- Added migration check script and release notes for `v0.2.0-rc1`.
 - Added Postgres integration coverage for connector search/fetch and citation-bearing chat responses.
 - Updated benchmark/docs artifacts for week-6 RC readiness.
 

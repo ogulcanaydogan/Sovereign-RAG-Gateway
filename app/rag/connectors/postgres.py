@@ -1,7 +1,7 @@
 import re
-from hashlib import sha256
 from typing import Any, cast
 
+from app.rag.embeddings import EmbeddingGenerator, HashEmbeddingGenerator, vector_literal
 from app.rag.types import Document, DocumentChunk
 
 try:
@@ -21,6 +21,7 @@ class PostgresPgvectorConnector:
         table: str = "rag_chunks",
         embedding_dim: int = 16,
         connector_name: str = "postgres",
+        embedding_generator: EmbeddingGenerator | None = None,
     ):
         if psycopg is None or dict_row is None:
             raise RuntimeError("psycopg is required for Postgres connector")
@@ -31,12 +32,19 @@ class PostgresPgvectorConnector:
         self._table = table
         self._embedding_dim = embedding_dim
         self._connector_name = connector_name
+        self._embedding_generator = embedding_generator or HashEmbeddingGenerator(embedding_dim)
 
     def search(self, query: str, filters: dict[str, str], k: int) -> list[DocumentChunk]:
         if k < 1:
             return []
 
-        query_vector = self._vector_literal(self._text_to_vector(query))
+        query_vector_values = self._embedding_generator.embed_texts([query])[0]
+        if len(query_vector_values) != self._embedding_dim:
+            raise RuntimeError(
+                f"embedding dimension mismatch for query vector: expected "
+                f"{self._embedding_dim}, got {len(query_vector_values)}"
+            )
+        query_vector = vector_literal(query_vector_values)
         where_clauses: list[str] = []
         params: list[Any] = []
 
@@ -130,14 +138,3 @@ class PostgresPgvectorConnector:
         if not isinstance(raw, dict):
             return {}
         return {str(key): str(value) for key, value in raw.items()}
-
-    def _text_to_vector(self, text: str) -> list[float]:
-        digest = sha256(text.encode("utf-8")).digest()
-        values = [round((byte - 128) / 128.0, 6) for byte in digest[: self._embedding_dim]]
-        if len(values) < self._embedding_dim:
-            values.extend([0.0] * (self._embedding_dim - len(values)))
-        return values
-
-    @staticmethod
-    def _vector_literal(values: list[float]) -> str:
-        return "[" + ",".join(f"{value:.6f}" for value in values) + "]"
