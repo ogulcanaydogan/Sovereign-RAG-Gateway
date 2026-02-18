@@ -2,15 +2,24 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-Sovereign RAG Gateway enforces runtime governance — identity verification, policy evaluation, data redaction, and retrieval authorization — in the critical path of every LLM and RAG request, before traffic reaches upstream providers. It produces tamper-evident decision trails that enable forensic replay during incident response and regulatory audits.
+![Version](https://img.shields.io/badge/version-0.3.0--rc1-blue)
+![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-see%20LICENSE-green)
+![CI](https://img.shields.io/badge/CI-passing-brightgreen)
 
-Built for security engineering teams, platform teams, and SREs operating AI systems in healthcare, financial services, and other regulated domains where post-hoc controls and best-effort logging are insufficient.
+Sovereign RAG Gateway enforces runtime governance — identity verification, policy evaluation, data redaction, and retrieval authorization — in the critical path of every LLM and RAG request, before traffic reaches upstream providers. It produces tamper-evident, hash-chained decision trails that enable forensic replay during incident response and regulatory audits.
+
+Built for security engineering teams, platform teams, and SREs operating AI systems in healthcare, financial services, and other regulated domains where post-hoc controls are insufficient.
+
+---
 
 ## The Problem
 
-Enterprise AI deployments in regulated industries face a structural gap: governance controls are typically bolted on after the fact — one service handles redaction, another handles policy, another handles routing, and audit logs are scattered across systems. During incidents, teams cannot prove whether controls were actually enforced at decision time.
+Enterprise AI deployments in regulated industries face a structural gap: governance controls are bolted on after the fact — one service handles redaction, another handles policy, another handles routing, and audit logs are scattered across systems with no causal linkage. During incidents, no single system can reconstruct the complete decision path for a given request.
 
-This architecture fails under regulatory scrutiny because it cannot answer the fundamental question: *what exact policy version evaluated this request, what transformations were applied, and why was the decision allow or deny?*
+In healthcare (HIPAA), financial services (FCA, PRA), and other regulated domains, auditors require demonstrable proof that controls were enforced at decision time — not aspirational documentation that controls exist somewhere in the architecture. The fundamental question is: *what exact policy version evaluated this request, what transformations were applied to the data, and can you cryptographically prove it?*
+
+Post-hoc logging cannot answer this question. If redaction runs in a separate service with eventual consistency, you cannot prove that PHI was scrubbed before it left the boundary. If policy evaluation is asynchronous, you cannot prove the request was governed before reaching the provider. Observability without enforcement is monitoring, not governance.
 
 ## How It Works
 
@@ -72,36 +81,9 @@ flowchart LR
     style GW fill:#1565c0,color:#fff,stroke:#0d47a1
 ```
 
-## Core Capabilities
-
-### In-Path Policy Enforcement
-Every request is evaluated by OPA (Open Policy Agent) before retrieval or provider egress. Policy decisions are deterministic, machine-readable, and recorded with the policy version hash. Supports `enforce` mode (blocks requests) and `observe` mode (logs without blocking) for progressive rollout.
-
-### Tamper-Evident Decision Lineage
-Each request produces decision artifacts linked by request ID and policy hash. Auth context, policy evaluation, transform operations, and provider routing decisions are recorded in a structured audit trail that enables forensic reconstruction of any request's full execution path.
-
-### Classification-Aware Data Redaction
-PHI/PII detection and redaction applied based on the request's data classification header. Redaction events are counted, logged, and included in the audit artifact. The system makes no claim of perfect detection — false-positive and false-negative rates are explicitly measured and published.
-
-### Policy-Scoped Retrieval (RAG)
-Retrieval Augmented Generation with governance constraints: connector access is authorized per-tenant and per-policy, source partitions are enforced regardless of prompt content, and citations in responses must reference only authorized sources. Supports pluggable backends including filesystem indexes and PostgreSQL with pgvector.
-
-### OpenAI API Compatibility
-Drop-in compatible with OpenAI's chat completions, embeddings, and model listing endpoints. Application teams use standard OpenAI client SDKs without modification — governance is transparent at the transport layer.
-
-### Multi-Provider Routing with Cost-Aware Fallback
-Provider registry pattern with automatic failover on retryable errors (429, 502, 503). Cost-per-token selection enables budget-aware routing across multiple upstream LLM providers. Fallback chains are configurable per-tenant and recorded in audit events for forensic analysis.
-
-### Prometheus Metrics and Grafana Dashboards
-Native `/metrics` endpoint exposes request rates, latency percentiles, policy decisions, token throughput, provider cost, redaction counts, and fallback events. Pre-built Grafana dashboard with 10 panels across four operational domains: request overview, policy decisions, provider cost, and data protection.
-
-### Production Kubernetes Deployment
-Helm chart with secure defaults, RBAC, network policies, liveness/readiness probes, and values schema validation. Automated release pipeline with container signing (keyless cosign), SBOM generation (SPDX), and provenance attestation.
-
-### GitOps and Secret Management
-Argo CD ApplicationSet for declarative multi-environment promotion (dev, staging, prod). External Secrets Operator integration with AWS Secrets Manager for automated secret rotation. Rotation runbook with emergency revocation procedures.
-
 ## Architecture
+
+The gateway is structured as five cooperating layers. Each layer has a single responsibility, and data flows through them in a fixed, deterministic sequence:
 
 ```mermaid
 graph TB
@@ -162,26 +144,248 @@ graph TB
     style CLIENT fill:#2e7d32,color:#fff,stroke:#1b5e20
 ```
 
-## Tech Stack
+### Module Map
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.12+ |
-| Framework | FastAPI 0.115+ (async, OpenAI-compatible) |
-| Policy Engine | Open Policy Agent (OPA) 0.67+ |
-| Vector Store | PostgreSQL 16+ with pgvector |
-| Containerisation | Docker (Python 3.12-slim) |
-| Orchestration | Kubernetes, Helm v3 |
-| Observability | Prometheus metrics, Grafana dashboards, OpenTelemetry collector |
-| CI/CD | GitHub Actions (test, deploy-smoke, release) |
-| GitOps | Argo CD ApplicationSet, External Secrets Operator |
-| Supply Chain | Cosign (keyless signing), SPDX SBOM, provenance attestation |
-| Package Management | uv |
-| Quality | pytest, ruff, mypy (strict mode) |
+| Layer | Modules | Responsibility |
+|---|---|---|
+| Ingress | `middleware/auth.py`, `middleware/request_id.py` | Identity extraction, classification headers, request tracing |
+| Enforcement | `policy/client.py`, `policy/transforms.py`, `redaction/engine.py` | OPA evaluation, fail-closed contract, PHI/PII scrubbing |
+| Retrieval | `rag/retrieval.py`, `rag/registry.py`, `rag/connectors/` | Policy-scoped connector dispatch, citation integrity |
+| Egress | `providers/registry.py`, `providers/http_openai.py` | Multi-provider routing, cost-aware fallback |
+| Evidence | `audit/writer.py` | Hash-chained JSON Lines, schema-validated audit events |
+
+Full architecture reference: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+
+## Core Capabilities
+
+### In-Path Policy Enforcement
+
+```mermaid
+flowchart TD
+    REQ["Request Context\n(tenant, user, classification,\nmodel, RAG config)"] --> PC["PolicyClient"]
+    PC -->|"HTTP POST"| OPA["OPA Server"]
+
+    OPA --> ALLOW["Allow\n+ transforms\n+ policy_hash"]
+    OPA --> DENY["Deny\n+ reason code\n+ policy_hash"]
+
+    PC -->|"timeout / error"| CLOSED["Fail-Closed Deny\n(OPA unavailable)"]
+
+    ALLOW --> AUDIT["Audit Event"]
+    DENY --> AUDIT
+    CLOSED --> AUDIT
+
+    style DENY fill:#d32f2f,color:#fff,stroke:#b71c1c
+    style CLOSED fill:#d32f2f,color:#fff,stroke:#b71c1c
+    style ALLOW fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style OPA fill:#f57f17,color:#fff,stroke:#e65100
+    style AUDIT fill:#1565c0,color:#fff,stroke:#0d47a1
+```
+
+Every request is evaluated by OPA before retrieval or provider egress. Policy decisions are deterministic, machine-readable, and recorded with the policy version hash. Supports `enforce` mode (blocks requests) and `observe` mode (logs without blocking) for progressive rollout.
+
+### Data Protection Flow
+
+```mermaid
+flowchart LR
+    CLIENT["Client Request\n(may contain PHI)"] --> CLASS{"Classification\nHeader"}
+    CLASS -- "phi / pii" --> SCAN["Regex Pattern\nScanner"]
+    CLASS -- "public" --> PASS["Unchanged\nPayload"]
+
+    SCAN --> MRN["MRN Pattern\n→ [MRN_REDACTED]"]
+    SCAN --> DOB["DOB Pattern\n→ [DOB_REDACTED]"]
+    SCAN --> PHONE["Phone Pattern\n→ [PHONE_REDACTED]"]
+
+    MRN --> OUT["Redacted\nPayload"]
+    DOB --> OUT
+    PHONE --> OUT
+
+    OUT --> PROVIDER["To Provider\n(PHI removed)"]
+    PASS --> PROVIDER
+
+    OUT -.-> AUDIT["Audit Event\n(redaction_count)"]
+
+    style CLIENT fill:#fff3e0,stroke:#e65100
+    style SCAN fill:#fce4ec,stroke:#c62828
+    style PROVIDER fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style AUDIT fill:#1565c0,color:#fff,stroke:#0d47a1
+    style MRN fill:#fce4ec,stroke:#c62828
+    style DOB fill:#fce4ec,stroke:#c62828
+    style PHONE fill:#fce4ec,stroke:#c62828
+```
+
+Classification-aware redaction activates only when the request's data classification header indicates PHI or PII. Redaction events are counted, logged, and included in the audit artifact. The system makes no claim of perfect detection — false-positive and false-negative rates are explicitly measured and published.
+
+### Policy-Scoped Retrieval (RAG)
+
+```mermaid
+graph TB
+    POLICY["Policy Decision\n(allowed connectors)"] --> AUTH_CHECK["Authorization\nCheck"]
+    AUTH_CHECK -- "authorized" --> REG["Connector\nRegistry"]
+    AUTH_CHECK -- "denied" --> BLOCK["Blocked\n(regardless of prompt)"]
+
+    REG --> FS["Filesystem\nConnector"]
+    REG --> PG["PostgreSQL\npgvector"]
+
+    FS --> MERGE["Merge & Rank\nResults"]
+    PG --> MERGE
+
+    MERGE --> CIT["Citation\nMetadata"]
+    CIT --> VERIFY["Citation Integrity\nVerification"]
+
+    style BLOCK fill:#d32f2f,color:#fff,stroke:#b71c1c
+    style POLICY fill:#f57f17,color:#fff,stroke:#e65100
+    style VERIFY fill:#2e7d32,color:#fff,stroke:#1b5e20
+```
+
+Connector access is authorized per-tenant and per-policy. Source partitions are enforced regardless of prompt content — prompt injection attempts to override source scope are ineffective because authorization is decoupled from prompt content. Citations in responses must reference only authorized sources.
+
+### Tamper-Evident Audit Trail
+
+```mermaid
+flowchart LR
+    subgraph CHAIN["SHA-256 Hash Chain (append-only JSON Lines)"]
+        direction LR
+        E1["Event N-1\npayload_hash: abc12"]
+        E2["Event N\nprev_hash: abc12\npayload_hash: def45"]
+        E3["Event N+1\nprev_hash: def45\npayload_hash: 78gh9"]
+
+        E1 --> E2
+        E2 --> E3
+    end
+
+    subgraph FIELDS["Each Audit Event Contains"]
+        direction TB
+        F1["request_id"]
+        F2["tenant_id + user_id"]
+        F3["policy_decision + policy_hash"]
+        F4["redaction_count"]
+        F5["provider_route + latency"]
+        F6["payload_hash + prev_hash"]
+    end
+
+    E2 -.-> REPLAY["Forensic Replay\n(by request_id)"]
+
+    style CHAIN fill:#ede7f6,stroke:#4527a0
+    style FIELDS fill:#e3f2fd,stroke:#1565c0
+    style REPLAY fill:#2e7d32,color:#fff,stroke:#1b5e20
+```
+
+Each audit event is hash-chained using SHA-256 — every event records the `payload_hash` of the previous event as its `prev_hash`, creating a tamper-evident chain. Given a `request_id`, an investigator can reconstruct the complete execution path: auth context, policy evaluation, transforms applied, redaction operations, retrieval sources, and provider routing decision.
+
+### Multi-Provider Routing with Cost-Aware Fallback
+
+```mermaid
+flowchart TD
+    REQ["Chat / Embeddings\nRequest"] --> REG["Provider Registry"]
+
+    REG --> SELECT{"Select\nPrimary"}
+
+    SELECT --> P1["Provider A\n(priority: 10)"]
+    P1 -->|"success"| OK["Return Response"]
+    P1 -->|"429 / 502 / 503"| FB{"Fallback?"}
+
+    FB -->|"next in chain"| P2["Provider B\n(priority: 50)"]
+    P2 -->|"success"| OK
+    P2 -->|"429 / 502 / 503"| P3["Provider C\n(priority: 100)"]
+    P3 --> OK
+
+    FB -->|"no more providers"| ERR["ProviderError"]
+
+    REG --> COST["cheapest_for_tokens()\n(cost-aware selection)"]
+    COST -.-> SELECT
+
+    style REG fill:#e3f2fd,stroke:#1565c0
+    style OK fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style ERR fill:#d32f2f,color:#fff,stroke:#b71c1c
+    style COST fill:#fff3e0,stroke:#e65100
+```
+
+Priority-ordered fallback chain with automatic failover on retryable errors (429, 502, 503). Cost-per-token selection via `cheapest_for_tokens()` enables budget-aware routing across multiple upstream LLM providers. Routing decisions — provider name, attempts, and full fallback chain — are recorded in audit events for forensic analysis.
+
+### Observability Stack
+
+```mermaid
+flowchart LR
+    GW["Gateway\n(/metrics endpoint)"] --> PROM["Prometheus\n(scrape every 10s)"]
+    PROM --> GRAF["Grafana\n(10 pre-built panels)"]
+
+    GRAF --> R1["Request Overview\n(rate, latency p50/p95/p99,\nstatus distribution)"]
+    GRAF --> R2["Policy Decisions\n(allow/deny rate,\ndeny ratio gauge)"]
+    GRAF --> R3["Provider & Cost\n(token throughput,\nhourly cost, fallback rate)"]
+    GRAF --> R4["Data Protection\n(redaction rate,\nprovider distribution)"]
+
+    style GW fill:#e3f2fd,stroke:#1565c0
+    style PROM fill:#fff3e0,stroke:#e65100
+    style GRAF fill:#e8f5e9,stroke:#2e7d32
+```
+
+Custom in-process Prometheus collector with zero external dependencies — 6 counters and 1 histogram exposed at `/metrics` in standard text format. Pre-built Grafana dashboard ConfigMap with 10 panels across four operational domains, deployable alongside the gateway Helm chart.
+
+### OpenAI API Compatibility
+
+Drop-in compatible with OpenAI's chat completions, embeddings, and model listing endpoints. Application teams use standard OpenAI client SDKs without modification — governance is transparent at the transport layer.
+
+## Security Trust Boundaries
+
+```mermaid
+flowchart TD
+    subgraph UNTRUSTED["Untrusted Zone"]
+        CLIENT["Client Application\n(may send PHI/PII)"]
+        LLM["External LLM Provider\n(data leaves boundary)"]
+    end
+
+    subgraph BOUNDARY["Gateway Enforcement Boundary"]
+        direction TB
+        AUTH["Auth Middleware\n(identity verification)"]
+        POLICY["Policy Engine\n(OPA evaluation)"]
+        REDACT["Redaction Engine\n(PHI/PII removal)"]
+        AUDIT["Audit Writer\n(tamper-evident trail)"]
+    end
+
+    subgraph CONTROLLED["Controlled Zone"]
+        OPA["OPA Server\n(policy bundles)"]
+        PG["PostgreSQL\n(pgvector)"]
+        FS["Filesystem Index\n(JSON Lines)"]
+    end
+
+    CLIENT -->|"raw request\n(may contain PHI)"| AUTH
+    AUTH --> POLICY
+    POLICY --> REDACT
+    REDACT -->|"redacted +\npolicy-evaluated"| LLM
+
+    POLICY <-->|"mTLS / internal"| OPA
+    REDACT -.-> PG
+    REDACT -.-> FS
+
+    AUTH -.-> AUDIT
+    POLICY -.-> AUDIT
+    REDACT -.-> AUDIT
+
+    style UNTRUSTED fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style BOUNDARY fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style CONTROLLED fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style CLIENT fill:#fff3e0,stroke:#e65100
+    style LLM fill:#78909c,color:#fff,stroke:#455a64
+    style AUDIT fill:#1565c0,color:#fff,stroke:#0d47a1
+```
+
+The gateway is the sole enforcement point between untrusted client traffic and untrusted provider egress. All governance — authentication, policy evaluation, data redaction, and evidence production — executes within this boundary. The controlled zone (OPA, PostgreSQL, filesystem index) is reachable only from the gateway over internal networking. No client traffic bypasses the enforcement layer, and no unredacted data leaves the boundary toward external providers.
+
+## Key Architecture Decisions
+
+| Decision | Alternative Considered | Trade-off | Why This Choice |
+|---|---|---|---|
+| Fail-closed on OPA unavailability | Fail-open with logging | Availability impact during policy outages | Explicit denial is safer than implicit permission in regulated workloads |
+| Regex-first PHI/PII redaction | NER/ML model pipeline | Lower accuracy on context-dependent entities | Deterministic, no model dependency, measurable false-positive rate. ML upgrade path planned |
+| Synchronous policy evaluation | Async / eventual consistency | Adds latency to every request | Async would break the "enforce before egress" guarantee |
+| Single gateway binary | Microservice mesh | Cannot scale concerns independently | Reduces operational complexity; policy, redaction, and audit are tightly coupled |
+| OpenAI-compatible surface only | Multi-protocol support | No native Anthropic/Google endpoints | Reduces scope; most providers offer OpenAI-compatible modes |
+| Hash-based local embeddings | Always use remote embeddings | Lower semantic quality for retrieval | Deterministic, no network calls, enables air-gapped and test deployments |
+| Custom Prometheus collector | `prometheus_client` library | More code to maintain | Zero external dependency; thread-safe in-process implementation with no transitive risk |
 
 ## Governance Modes
 
-The gateway supports progressive adoption through two operational modes. This allows teams to validate policy behaviour in production traffic before enabling enforcement:
+The gateway supports progressive adoption through two operational modes, allowing teams to validate policy behaviour against production traffic before enabling enforcement:
 
 ```mermaid
 flowchart LR
@@ -207,6 +411,73 @@ flowchart LR
     style D2 fill:#d32f2f,color:#fff,stroke:#b71c1c
 ```
 
+Teams start in observe mode to baseline policy decisions against real traffic patterns. Once false-positive rates are acceptable and policy coverage is validated, switching to enforce mode makes policy decisions binding.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Python 3.12+ |
+| Framework | FastAPI 0.115+ (async, OpenAI-compatible) |
+| Policy Engine | Open Policy Agent (OPA) 0.67+ |
+| Vector Store | PostgreSQL 16+ with pgvector |
+| Containerisation | Docker (Python 3.12-slim) |
+| Orchestration | Kubernetes, Helm v3 |
+| Observability | Prometheus metrics, Grafana dashboards, OpenTelemetry collector |
+| CI/CD | GitHub Actions (test, deploy-smoke, release) |
+| GitOps | Argo CD ApplicationSet, External Secrets Operator |
+| Supply Chain | Cosign (keyless signing), SPDX SBOM, provenance attestation |
+| Package Management | uv |
+| Quality | pytest, ruff, mypy (strict mode) |
+
+## Benchmark Methodology
+
+The project follows a publish-methodology-not-just-scores approach to evaluation:
+
+```mermaid
+flowchart LR
+    CORPUS["Synthetic Corpus\n+ Adversarial\nInputs"] --> CONDITIONS["4 Test\nConditions"]
+    CONDITIONS --> METRICS["Metrics\nCollection"]
+    METRICS --> GATES["CI Quality\nGates"]
+    GATES --> ARTIFACTS["Published\nArtifacts"]
+
+    CONDITIONS -.-> C1["Baseline\n(no gateway)"]
+    CONDITIONS -.-> C2["Observe\n(log only)"]
+    CONDITIONS -.-> C3["Enforce\n(policy + redact)"]
+    CONDITIONS -.-> C4["Enforce + RAG\n(full pipeline)"]
+
+    ARTIFACTS -.-> A1["CSV / JSON\nraw data"]
+    ARTIFACTS -.-> A2["Provenance\nmanifest"]
+    ARTIFACTS -.-> A3["Reproduction\nscripts"]
+
+    style CORPUS fill:#e3f2fd,stroke:#1565c0
+    style GATES fill:#fff3e0,stroke:#e65100
+    style ARTIFACTS fill:#e8f5e9,stroke:#2e7d32
+```
+
+**Governance Yield vs Performance Overhead** — the primary benchmark track quantifies the tradeoff between governance effectiveness and runtime overhead:
+
+| Condition | Description |
+|---|---|
+| Baseline | Direct provider calls, no gateway |
+| Observe | Gateway decisions logged, not enforced |
+| Enforce | Policy evaluation + data redaction |
+| Enforce + RAG | Policy + redaction + connector-scoped retrieval |
+
+**Key Metrics and v0.2 Targets:**
+| Metric | Target |
+|---|---|
+| Leakage rate (sensitive data reaching provider) | < 0.5% |
+| Redaction false-positive rate | < 8% |
+| Policy deny F1 score | >= 0.90 |
+| Citation integrity (authorised sources only) | >= 99% |
+| p95 latency overhead (chat) | < 250 ms |
+| p95 latency overhead (RAG) | < 600 ms |
+
+CI-enforced quality gates: citation presence rate >= 0.95, pgvector Recall@3 >= 0.80. All benchmark artifacts (raw CSV/JSON, provenance manifests, reproduction scripts) are published alongside summary reports.
+
+Full methodology: [`docs/benchmarks/governance-yield-vs-performance-overhead.md`](docs/benchmarks/governance-yield-vs-performance-overhead.md)
+
 ## Release and Supply Chain Pipeline
 
 Every tagged release goes through a signed, auditable pipeline:
@@ -230,32 +501,95 @@ flowchart LR
     style REL fill:#2e7d32,color:#fff,stroke:#1b5e20
 ```
 
-## Benchmark Methodology
+## CI/CD Pipeline
 
-The project follows a publish-methodology-not-just-scores approach to evaluation:
+```mermaid
+flowchart LR
+    subgraph CI["ci.yml (every push / PR)"]
+        direction TB
+        LINT["ruff\nlint"] --> TYPE["mypy\ntypecheck"]
+        TYPE --> TEST["pytest\n(unit + integration)"]
+        TEST --> SCHEMA["schema\nvalidation"]
+    end
 
-**Governance Yield vs Performance Overhead** — the primary benchmark track quantifies the tradeoff between governance effectiveness and runtime overhead across four conditions:
+    subgraph SMOKE["deploy-smoke.yml"]
+        direction TB
+        KIND["Spin up\nkind cluster"] --> HELM["Install\nHelm chart"]
+        HELM --> ROLL["Validate\nrollout"]
+        ROLL --> HEALTH["Endpoint\nhealth check"]
+    end
 
-| Condition | Description |
-|---|---|
-| Baseline | Direct provider calls, no gateway |
-| Observe | Gateway decisions logged, not enforced |
-| Enforce | Policy evaluation + data redaction |
-| Enforce + RAG | Policy + redaction + connector-scoped retrieval |
+    subgraph RELEASE["release.yml (v* tag)"]
+        direction TB
+        BUILD["Container\nbuild"] --> GHCR["Push to\nGHCR"]
+        GHCR --> COSIGN["Cosign\n(keyless)"]
+        COSIGN --> SBOM_R["SPDX\nSBOM"]
+        SBOM_R --> ATTEST["Provenance\nattestation"]
+        ATTEST --> GH_REL["GitHub\nRelease"]
+    end
 
-**Key Metrics and v0.2 Targets:**
-| Metric | Target |
-|---|---|
-| Leakage rate (sensitive data reaching provider) | < 0.5% |
-| Redaction false-positive rate | < 8% |
-| Policy deny F1 score | >= 0.90 |
-| Citation integrity (authorised sources only) | >= 99% |
-| p95 latency overhead (chat) | < 250 ms |
-| p95 latency overhead (RAG) | < 600 ms |
+    PUSH["git push"] --> CI
+    PUSH --> SMOKE
+    TAG_R["git tag v*"] --> RELEASE
 
-CI-enforced quality gates: citation presence rate >= 0.95, pgvector Recall@3 >= 0.80. All benchmark artifacts (raw CSV/JSON, provenance manifests, reproduction scripts) are published alongside summary reports.
+    style CI fill:#e3f2fd,stroke:#1565c0
+    style SMOKE fill:#e8f5e9,stroke:#2e7d32
+    style RELEASE fill:#ede7f6,stroke:#4527a0
+    style PUSH fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style TAG_R fill:#4527a0,color:#fff,stroke:#311b92
+```
 
-Full methodology: [`docs/benchmarks/governance-yield-vs-performance-overhead.md`](docs/benchmarks/governance-yield-vs-performance-overhead.md)
+- **ci.yml** — lint (ruff), type check (mypy strict), test (pytest), and JSON Schema validation on every push and pull request
+- **deploy-smoke.yml** — spins up a kind cluster, installs the Helm chart, validates rollout, and runs endpoint health checks
+- **release.yml** — triggered by `v*` tags: builds container, pushes to GHCR, signs with cosign (keyless), generates SPDX SBOM, attaches provenance attestation, publishes release notes from CHANGELOG
+
+## GitOps and Secret Management
+
+```mermaid
+flowchart LR
+    subgraph REPO["Git Repository"]
+        direction TB
+        CHART["Helm Chart\n(charts/)"]
+        DEV_V["dev/values.yaml"]
+        STG_V["staging/values.yaml"]
+        PROD_V["prod/values.yaml"]
+    end
+
+    subgraph ARGOCD["Argo CD"]
+        direction TB
+        APPSET["ApplicationSet\n(env generator)"]
+    end
+
+    subgraph K8S["Kubernetes"]
+        direction TB
+        DEV_NS["srg-system\n(dev)"]
+        STG_NS["srg-staging\n(staging)"]
+        PROD_NS["srg-prod\n(prod)"]
+    end
+
+    subgraph ESO["External Secrets"]
+        direction TB
+        AWS["AWS Secrets\nManager"]
+        SYNC["ESO Controller\n(1h refresh)"]
+    end
+
+    REPO --> APPSET
+    APPSET --> DEV_NS
+    APPSET --> STG_NS
+    APPSET --> PROD_NS
+
+    AWS --> SYNC
+    SYNC --> DEV_NS
+    SYNC --> STG_NS
+    SYNC --> PROD_NS
+
+    style REPO fill:#e3f2fd,stroke:#1565c0
+    style ARGOCD fill:#fff3e0,stroke:#e65100
+    style K8S fill:#e8f5e9,stroke:#2e7d32
+    style ESO fill:#ede7f6,stroke:#4527a0
+```
+
+Argo CD ApplicationSet generates one Application per environment from a list generator. Dev and staging auto-sync on commit; prod requires manual sync approval. External Secrets Operator syncs API keys and provider credentials from AWS Secrets Manager into Kubernetes Secrets with automatic 1-hour refresh. Rotation runbook covers standard rotation, emergency revocation, and sync monitoring.
 
 ## Competitive Landscape
 
@@ -268,24 +602,47 @@ Evaluated against 10 adjacent tools in the AI gateway and governance space:
 | Cloud-Native AI Gateway | Cloudflare AI Gateway, Azure APIM GenAI Gateway |
 | Guardrails / Safety | NVIDIA NeMo Guardrails, Guardrails AI |
 
-**Differentiation wedge:** Sovereign RAG Gateway is the only tool in this landscape that combines fail-closed in-path policy enforcement, tamper-evident decision lineage, and policy-scoped RAG with citation integrity — all in a single, self-hosted Kubernetes-deployable control plane. Existing tools either focus on routing/cost (LiteLLM, Portkey), require platform lock-in (Azure, Cloudflare), or provide guardrails without centralized runtime enforcement and audit lineage (NeMo, Guardrails AI).
+**Differentiation — three capabilities no single competitor combines:**
+
+- **Fail-closed in-path policy enforcement** — deterministic deny when OPA is unavailable, not silent fallback to permissive behaviour
+- **Tamper-evident decision lineage** — SHA-256 hash-chained audit events with policy version hashes, enabling forensic reconstruction of any request
+- **Policy-scoped RAG with citation integrity** — retrieval authorization decoupled from prompt content, citations verified against allowed sources
 
 Full analysis with source references: [`docs/strategy/differentiation-strategy.md`](docs/strategy/differentiation-strategy.md)
 
-## Project Metrics
+## Engineering Metrics
+
+### Codebase Scale
 
 | Metric | Value |
 |---|---|
-| Python source files | 76 |
-| Test files | 30 |
-| Test coverage scope | Unit, integration, contract, benchmark validation |
-| CI pipelines | 3 (test, deploy-smoke on kind, signed release) |
-| JSON Schema contracts | 3 (policy decision, audit event, citations) |
-| Benchmark eval gates | 2 (citation integrity, pgvector ranking) |
-| Prometheus metrics | 6 counters + 1 histogram |
-| Grafana dashboard panels | 10 (request, policy, cost, data protection) |
-| GitOps environments | 3 (dev, staging, prod via Argo CD) |
+| Application code | ~2,354 lines across 34 modules |
+| Test code | ~1,312 lines across 29 test files |
+| Test-to-code ratio | 56% |
+| Support scripts | ~1,118 lines across 8 scripts |
+| Documentation | ~1,915 lines across 19 documents |
 | Current version | 0.3.0-rc1 |
+
+### Quality and Contracts
+
+| Metric | Value |
+|---|---|
+| Type checking | mypy strict mode (zero errors) |
+| Linting | ruff (zero warnings) |
+| JSON Schema contracts | 3 (policy decision, audit event, citations) |
+| Test coverage scope | Unit, integration, contract, benchmark validation |
+| Benchmark eval gates | 2 (citation integrity, pgvector ranking) |
+
+### Deployment and Operations
+
+| Metric | Value |
+|---|---|
+| Kubernetes manifests | 25 YAML files |
+| Helm chart templates | 12 templates with values schema validation |
+| CI/CD pipelines | 3 (test, deploy-smoke on kind, signed release) |
+| GitOps environments | 3 (dev, staging, prod via Argo CD) |
+| Prometheus metrics | 6 counters + 1 histogram |
+| Grafana dashboard panels | 10 panels across 4 operational domains |
 
 ## Quick Start
 
@@ -311,6 +668,8 @@ make demo-up        # Deploy to kind + smoke test
 ```
 
 ### API Usage
+
+PHI-classified request with automatic redaction:
 ```bash
 curl -s http://127.0.0.1:8000/v1/chat/completions \
   -H 'Authorization: Bearer dev-key' \
