@@ -18,6 +18,7 @@ from app.providers.base import ChatProvider, ProviderCapabilities
 from app.providers.http_openai import HTTPOpenAIProvider
 from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
+from app.rag.connectors.confluence import ConfluenceConnector
 from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
@@ -184,6 +185,21 @@ def create_app() -> FastAPI:
                 index_key=settings.rag_s3_index_key,
                 region=settings.rag_s3_region,
                 endpoint_url=settings.rag_s3_endpoint_url,
+            ),
+        )
+    if (
+        settings.rag_confluence_base_url
+        and settings.rag_confluence_email
+        and settings.rag_confluence_api_token
+    ):
+        connector_registry.register(
+            "confluence",
+            ConfluenceConnector(
+                base_url=settings.rag_confluence_base_url,
+                email=settings.rag_confluence_email,
+                api_token=settings.rag_confluence_api_token,
+                spaces=settings.rag_confluence_space_set,
+                cache_ttl_seconds=settings.rag_confluence_cache_ttl_seconds,
             ),
         )
 

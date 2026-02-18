@@ -20,6 +20,12 @@
     "policy_mode",
     "transforms_applied",
     "redaction_count",
+    "request_payload_hash",
+    "redacted_payload_hash",
+    "provider_request_hash",
+    "provider_response_hash",
+    "retrieval_citations",
+    "streaming",
     "tokens_in",
     "tokens_out",
     "cost_usd",
@@ -60,6 +66,30 @@
       "type": "integer",
       "minimum": 0
     },
+    "request_payload_hash": {"type": "string"},
+    "redacted_payload_hash": {"type": "string"},
+    "provider_request_hash": {
+      "type": ["string", "null"]
+    },
+    "provider_response_hash": {
+      "type": ["string", "null"]
+    },
+    "retrieval_citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "connector", "uri", "chunk_id", "score"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "connector": {"type": "string"},
+          "uri": {"type": "string"},
+          "chunk_id": {"type": "string"},
+          "score": {"type": "number"}
+        }
+      }
+    },
+    "streaming": {"type": "boolean"},
     "tokens_in": {
       "type": "integer",
       "minimum": 0

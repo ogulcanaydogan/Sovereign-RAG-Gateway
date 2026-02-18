@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     rag_s3_index_key: str = "rag/index.jsonl"
     rag_s3_region: str | None = None
     rag_s3_endpoint_url: str | None = None
+    rag_confluence_base_url: str | None = None
+    rag_confluence_email: str | None = None
+    rag_confluence_api_token: str | None = None
+    rag_confluence_spaces: str = ""
+    rag_confluence_cache_ttl_seconds: float = 60.0
     rag_embedding_dim: int = 16
     rag_embedding_source: str = "hash"
     rag_embedding_endpoint: str | None = None
@@ -54,6 +59,10 @@ class Settings(BaseSettings):
     @property
     def rag_allowed_connector_set(self) -> set[str]:
         return {item.strip() for item in self.rag_allowed_connectors.split(",") if item.strip()}
+
+    @property
+    def rag_confluence_space_set(self) -> set[str]:
+        return {item.strip() for item in self.rag_confluence_spaces.split(",") if item.strip()}
 
 
 @lru_cache

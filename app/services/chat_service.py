@@ -68,6 +68,7 @@ class ChatService:
         tenant_id = request.state.tenant_id
         user_id = request.state.user_id
         classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
 
         rag_requested = bool(self._settings.rag_enabled and payload.rag and payload.rag.enabled)
         requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
@@ -89,6 +90,17 @@ class ChatService:
 
         if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=False,
+            )
             raise AppError(403, "policy_denied", "policy", reason)
 
         transformed_request = apply_transforms(payload.model_dump(), decision.transforms)
@@ -117,11 +129,19 @@ class ChatService:
             redaction_result = self._redaction_engine.redact_messages(messages)
             messages = redaction_result.messages
             redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(messages)
 
         selected_model = str(transformed_request.get("model", payload.model))
         self._validate_model_constraints(decision, selected_model)
         max_tokens = transformed_request.get("max_tokens")
         allowed_provider_names = self._allowed_providers(decision)
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+            }
+        )
 
         routed_provider = self._settings.provider_name
         provider_attempts = 1
@@ -147,6 +167,7 @@ class ChatService:
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = ChatCompletionResponse.model_validate(provider_result)
+        provider_response_hash = self._hash_value(provider_result)
 
         if citations and response.choices:
             response.choices[0].message.citations = citations
@@ -167,6 +188,12 @@ class ChatService:
             decision=decision,
             policy_decision_label=policy_decision_label,
             redaction_count=redaction_count,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=redacted_payload_hash,
+            provider_request_hash=provider_request_hash,
+            provider_response_hash=provider_response_hash,
+            retrieval_citations=citations,
+            streaming=False,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             cost_usd=cost_usd,
@@ -224,6 +251,7 @@ class ChatService:
         tenant_id = request.state.tenant_id
         user_id = request.state.user_id
         classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
 
         rag_requested = bool(self._settings.rag_enabled and payload.rag and payload.rag.enabled)
         requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
@@ -245,6 +273,17 @@ class ChatService:
 
         if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=True,
+            )
             raise AppError(403, "policy_denied", "policy", reason)
 
         transformed_request = apply_transforms(payload.model_dump(), decision.transforms)
@@ -273,11 +312,19 @@ class ChatService:
             redaction_result = self._redaction_engine.redact_messages(messages)
             messages = redaction_result.messages
             redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(messages)
 
         selected_model = str(transformed_request.get("model", payload.model))
         self._validate_model_constraints(decision, selected_model)
         max_tokens = transformed_request.get("max_tokens")
         allowed_provider_names = self._allowed_providers(decision)
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+            }
+        )
 
         routed_provider = self._settings.provider_name
         provider_attempts = 1
@@ -418,6 +465,15 @@ class ChatService:
 
             if usage_completion_tokens == 0:
                 usage_completion_tokens = len("".join(completion_parts).split())
+            provider_response_hash = self._hash_value(
+                {
+                    "completion_text": "".join(completion_parts),
+                    "prompt_tokens": usage_prompt_tokens,
+                    "completion_tokens": usage_completion_tokens,
+                    "chunk_id": chunk_id,
+                    "model": selected_model,
+                }
+            )
 
             cost_usd = round((usage_prompt_tokens + usage_completion_tokens) * 0.000001, 8)
             audit_event = self._build_audit_event(
@@ -431,6 +487,12 @@ class ChatService:
                 decision=decision,
                 policy_decision_label=policy_decision_label,
                 redaction_count=redaction_count,
+                request_payload_hash=request_payload_hash,
+                redacted_payload_hash=redacted_payload_hash,
+                provider_request_hash=provider_request_hash,
+                provider_response_hash=provider_response_hash,
+                retrieval_citations=citations,
+                streaming=True,
                 tokens_in=usage_prompt_tokens,
                 tokens_out=usage_completion_tokens,
                 cost_usd=cost_usd,
@@ -493,6 +555,7 @@ class ChatService:
         tenant_id = request.state.tenant_id
         user_id = request.state.user_id
         classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
 
         raw_inputs = [payload.input] if isinstance(payload.input, str) else payload.input
         if not raw_inputs:
@@ -513,6 +576,17 @@ class ChatService:
 
         if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=False,
+            )
             raise AppError(403, "policy_denied", "policy", reason)
 
         selected_model = payload.model
@@ -530,10 +604,17 @@ class ChatService:
             )
             inputs = [item["content"] for item in redaction_result.messages]
             redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(inputs)
 
         routed_provider = self._settings.provider_name
         provider_attempts = 1
         fallback_chain: list[str] = [routed_provider]
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "inputs": inputs,
+            }
+        )
 
         try:
             if self._provider_registry and self._settings.provider_fallback_enabled:
@@ -554,6 +635,7 @@ class ChatService:
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = EmbeddingsResponse.model_validate(provider_result)
+        provider_response_hash = self._hash_value(provider_result)
 
         tokens_in = response.usage.prompt_tokens
         tokens_out = 0
@@ -571,6 +653,12 @@ class ChatService:
             decision=decision,
             policy_decision_label=policy_decision_label,
             redaction_count=redaction_count,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=redacted_payload_hash,
+            provider_request_hash=provider_request_hash,
+            provider_response_hash=provider_response_hash,
+            retrieval_citations=[],
+            streaming=False,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             cost_usd=cost_usd,
@@ -690,6 +778,8 @@ class ChatService:
         )
 
     def _policy_decision_label(self, decision: PolicyDecision) -> str:
+        if not decision.allow:
+            return "deny"
         if self._settings.opa_mode == "observe" and decision.deny_reason:
             return "observe"
         if decision.transforms:
@@ -757,6 +847,12 @@ class ChatService:
         decision: PolicyDecision,
         policy_decision_label: str,
         redaction_count: int,
+        request_payload_hash: str,
+        redacted_payload_hash: str,
+        provider_request_hash: str | None,
+        provider_response_hash: str | None,
+        retrieval_citations: list[Citation] | None,
+        streaming: bool,
         tokens_in: int,
         tokens_out: int,
         cost_usd: float,
@@ -778,6 +874,15 @@ class ChatService:
             "policy_mode": self._settings.opa_mode,
             "transforms_applied": [action.type for action in decision.transforms],
             "redaction_count": redaction_count,
+            "request_payload_hash": request_payload_hash,
+            "redacted_payload_hash": redacted_payload_hash,
+            "provider_request_hash": provider_request_hash,
+            "provider_response_hash": provider_response_hash,
+            "retrieval_citations": [
+                citation.model_dump() if isinstance(citation, Citation) else citation
+                for citation in (retrieval_citations or [])
+            ],
+            "streaming": streaming,
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
             "cost_usd": cost_usd,
@@ -794,6 +899,54 @@ class ChatService:
                 "allowed_connectors": decision.connector_constraints.allowed_connectors
             }
         return event
+
+    def _write_policy_deny_audit(
+        self,
+        request_id: str,
+        tenant_id: str,
+        user_id: str,
+        endpoint: str,
+        requested_model: str,
+        decision: PolicyDecision,
+        reason: str,
+        request_payload_hash: str,
+        streaming: bool,
+    ) -> None:
+        event = self._build_audit_event(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=endpoint,
+            requested_model=requested_model,
+            selected_model=requested_model,
+            provider="policy-gate",
+            decision=decision,
+            policy_decision_label="deny",
+            redaction_count=0,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=request_payload_hash,
+            provider_request_hash=None,
+            provider_response_hash=None,
+            retrieval_citations=[],
+            streaming=streaming,
+            tokens_in=0,
+            tokens_out=0,
+            cost_usd=0.0,
+            provider_attempts=1,
+            fallback_chain=[],
+        )
+        event["deny_reason"] = reason
+        try:
+            self._audit_writer.write_event(event)
+        except AuditValidationError as exc:
+            logger.warning(
+                "audit_write_failed_policy_deny",
+                extra={
+                    "request_id": request_id,
+                    "reason": reason,
+                    "error": str(exc),
+                },
+            )
 
     def _allowed_connectors(self, decision: PolicyDecision) -> set[str] | None:
         if (
@@ -875,6 +1028,16 @@ class ChatService:
             except ValueError:
                 return default
         return default
+
+    @staticmethod
+    def _hash_value(value: object) -> str:
+        canonical = json_mod.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _sse_event(payload: dict[str, object]) -> str:

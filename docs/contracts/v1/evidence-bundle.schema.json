@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-rag-gateway.dev/contracts/v1/evidence-bundle.schema.json",
+  "title": "EvidenceBundleV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_version",
+    "request_id",
+    "generated_at",
+    "policy",
+    "redaction",
+    "retrieval",
+    "provider",
+    "usage",
+    "integrity",
+    "source"
+  ],
+  "properties": {
+    "bundle_version": {"type": "string", "const": "v1"},
+    "request_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "policy_hash", "policy_mode", "allow", "deny_reason"],
+      "properties": {
+        "decision_id": {"type": "string"},
+        "policy_hash": {"type": "string"},
+        "policy_mode": {"type": "string", "enum": ["enforce", "observe"]},
+        "allow": {"type": "boolean"},
+        "deny_reason": {"type": ["string", "null"]}
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "request_payload_hash", "redacted_payload_hash"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "request_payload_hash": {"type": "string"},
+        "redacted_payload_hash": {"type": "string"}
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "connector", "citations"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "connector": {"type": ["string", "null"]},
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "connector", "uri", "chunk_id", "score"],
+            "properties": {
+              "source_id": {"type": "string"},
+              "connector": {"type": "string"},
+              "uri": {"type": "string"},
+              "chunk_id": {"type": "string"},
+              "score": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "selected_model",
+        "attempts",
+        "fallback_chain",
+        "provider_request_hash",
+        "provider_response_hash"
+      ],
+      "properties": {
+        "provider": {"type": "string"},
+        "selected_model": {"type": "string"},
+        "attempts": {"type": "integer", "minimum": 1},
+        "fallback_chain": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "provider_request_hash": {"type": ["string", "null"]},
+        "provider_response_hash": {"type": ["string", "null"]}
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens_in", "tokens_out", "cost_usd"],
+      "properties": {
+        "tokens_in": {"type": "integer", "minimum": 0},
+        "tokens_out": {"type": "integer", "minimum": 0},
+        "cost_usd": {"type": "number", "minimum": 0}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prev_hash", "payload_hash", "chain_verified"],
+      "properties": {
+        "prev_hash": {"type": "string"},
+        "payload_hash": {"type": "string"},
+        "chain_verified": {"type": "boolean"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audit_log_path", "event_id"],
+      "properties": {
+        "audit_log_path": {"type": "string"},
+        "event_id": {"type": "string"}
+      }
+    }
+  }
+}

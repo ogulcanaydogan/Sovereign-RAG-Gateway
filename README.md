@@ -695,6 +695,15 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
+Generate an evidence bundle for incident replay:
+```bash
+python scripts/audit_replay_bundle.py \
+  --request-id <request_id> \
+  --audit-log artifacts/audit/events.jsonl \
+  --out-dir artifacts/evidence \
+  --include-chain-verify
+```
+
 ## Documentation
 
 | Document | Description |
@@ -703,9 +712,12 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
 | [`docs/strategy/why-this-exists-security-sre.md`](docs/strategy/why-this-exists-security-sre.md) | Security and SRE problem narrative |
 | [`docs/strategy/killer-demo-stories.md`](docs/strategy/killer-demo-stories.md) | 5 measurable demo scenarios |
 | [`docs/benchmarks/governance-yield-vs-performance-overhead.md`](docs/benchmarks/governance-yield-vs-performance-overhead.md) | Full benchmark methodology |
+| [`docs/architecture/threat-model.md`](docs/architecture/threat-model.md) | Threat matrix, controls, and residual risk |
 | [`docs/operations/helm-kind-runbook.md`](docs/operations/helm-kind-runbook.md) | Local Kubernetes deployment guide |
+| [`docs/operations/confluence-connector.md`](docs/operations/confluence-connector.md) | Confluence read-only connector setup |
+| [`docs/operations/compliance-control-mapping.md`](docs/operations/compliance-control-mapping.md) | Technical control-to-evidence mapping |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
-| [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations) |
+| [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Current release notes |
 
 ## Honest Gap Assessment
@@ -723,10 +735,12 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Baseline Grafana dashboards for request/policy/cost telemetry
 - [x] External secrets integration and rotation runbook
 - [x] GitOps manifests (Argo CD) for declarative promotion
-- [ ] Streaming support for chat completions
-- [ ] Azure/Anthropic provider adapters
-- [ ] S3 connector for document retrieval
-- [ ] EKS reference deployment with validated guide
+- [x] Streaming support for chat completions
+- [x] Azure/Anthropic provider adapters
+- [x] S3 connector for document retrieval
+- [x] EKS reference deployment with validated guide
+- [x] Evidence replay bundle export and schema
+- [x] Confluence read-only connector
 
 ## Licence
 

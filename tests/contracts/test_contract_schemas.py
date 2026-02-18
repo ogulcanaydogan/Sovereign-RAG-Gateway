@@ -66,6 +66,20 @@ def test_audit_event_schema_fixture() -> None:
         "policy_mode": "enforce",
         "transforms_applied": ["set_max_tokens"],
         "redaction_count": 1,
+        "request_payload_hash": "req-hash",
+        "redacted_payload_hash": "redacted-hash",
+        "provider_request_hash": "provider-req-hash",
+        "provider_response_hash": "provider-resp-hash",
+        "retrieval_citations": [
+            {
+                "source_id": "src-1",
+                "connector": "filesystem",
+                "uri": "file:///tmp/doc.txt",
+                "chunk_id": "chunk-1",
+                "score": 0.9,
+            }
+        ],
+        "streaming": False,
         "tokens_in": 10,
         "tokens_out": 12,
         "cost_usd": 0.000022,
@@ -80,5 +94,67 @@ def test_audit_event_schema_fixture() -> None:
         "payload_hash": "hash-a",
         "prev_hash": "",
         "created_at": "2026-02-17T00:00:01Z",
+    }
+    validate(instance=fixture, schema=schema)
+
+
+def test_evidence_bundle_schema_fixture() -> None:
+    root = Path(__file__).resolve().parents[2]
+    schema = json.loads(
+        (root / "docs/contracts/v1/evidence-bundle.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    fixture = {
+        "bundle_version": "v1",
+        "request_id": "req-1",
+        "generated_at": "2026-02-17T00:00:05Z",
+        "policy": {
+            "decision_id": "decision-1",
+            "policy_hash": "hash",
+            "policy_mode": "enforce",
+            "allow": True,
+            "deny_reason": None,
+        },
+        "redaction": {
+            "count": 1,
+            "request_payload_hash": "req-hash",
+            "redacted_payload_hash": "redacted-hash",
+        },
+        "retrieval": {
+            "enabled": True,
+            "connector": "filesystem",
+            "citations": [
+                {
+                    "source_id": "src-1",
+                    "connector": "filesystem",
+                    "uri": "file:///tmp/doc.txt",
+                    "chunk_id": "chunk-1",
+                    "score": 0.9,
+                }
+            ],
+        },
+        "provider": {
+            "provider": "stub",
+            "selected_model": "gpt-4o-mini",
+            "attempts": 1,
+            "fallback_chain": ["stub"],
+            "provider_request_hash": "provider-req-hash",
+            "provider_response_hash": "provider-resp-hash",
+        },
+        "usage": {
+            "tokens_in": 10,
+            "tokens_out": 12,
+            "cost_usd": 0.000022,
+        },
+        "integrity": {
+            "prev_hash": "",
+            "payload_hash": "payload-hash",
+            "chain_verified": True,
+        },
+        "source": {
+            "audit_log_path": "artifacts/audit/events.jsonl",
+            "event_id": "evt-1",
+        },
     }
     validate(instance=fixture, schema=schema)
