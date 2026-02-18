@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## v0.3.0-rc1 - 2026-02-18
+- Added multi-provider routing with cost-aware fallback via `ProviderRegistry` (`app/providers/registry.py`).
+- Added `HTTPOpenAIProvider` for real OpenAI-compatible upstream endpoints (`app/providers/http_openai.py`).
+- Added Prometheus metrics module with 6 counters and 1 histogram, exposed at `/metrics` (`app/metrics.py`).
+- Added Grafana dashboard ConfigMap with 10 panels across request, policy, cost, and data protection domains.
+- Added Prometheus scrape config for gateway `/metrics` endpoint.
+- Added External Secrets Operator manifests for AWS Secrets Manager integration (`deploy/secrets/`).
+- Added secrets rotation runbook with standard rotation, emergency revocation, and sync monitoring (`docs/operations/secrets-rotation-runbook.md`).
+- Added Argo CD AppProject, Application, and ApplicationSet for multi-environment GitOps promotion (`deploy/gitops/`).
+- Added environment overlay values for dev, staging, and prod (`deploy/gitops/envs/`).
+- Updated Helm chart with Prometheus pod annotations, metrics and fallback settings, bumped appVersion to 0.3.0-rc1.
+- Updated audit event schema with `provider_attempts` and `fallback_chain` fields.
+- Integrated provider registry and metrics recording into `ChatService` for both chat and embeddings endpoints.
+
 ## v0.2.0 - 2026-02-18
 - Added Helm chart under `charts/sovereign-rag-gateway` with values schema, readiness/liveness probes, service account, optional RBAC, and default network policy.
 - Added kind deployment scripts and smoke runbook under `deploy/kind` and `docs/operations/helm-kind-runbook.md`.

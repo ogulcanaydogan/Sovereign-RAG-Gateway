@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 
+from app.metrics import metrics_router
 from app.models.openai import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -9,6 +10,7 @@ from app.models.openai import (
 from app.services.chat_service import ChatService
 
 router = APIRouter()
+router.include_router(metrics_router)
 
 
 @router.get("/healthz")

@@ -89,8 +89,17 @@ Retrieval Augmented Generation with governance constraints: connector access is 
 ### OpenAI API Compatibility
 Drop-in compatible with OpenAI's chat completions, embeddings, and model listing endpoints. Application teams use standard OpenAI client SDKs without modification — governance is transparent at the transport layer.
 
+### Multi-Provider Routing with Cost-Aware Fallback
+Provider registry pattern with automatic failover on retryable errors (429, 502, 503). Cost-per-token selection enables budget-aware routing across multiple upstream LLM providers. Fallback chains are configurable per-tenant and recorded in audit events for forensic analysis.
+
+### Prometheus Metrics and Grafana Dashboards
+Native `/metrics` endpoint exposes request rates, latency percentiles, policy decisions, token throughput, provider cost, redaction counts, and fallback events. Pre-built Grafana dashboard with 10 panels across four operational domains: request overview, policy decisions, provider cost, and data protection.
+
 ### Production Kubernetes Deployment
 Helm chart with secure defaults, RBAC, network policies, liveness/readiness probes, and values schema validation. Automated release pipeline with container signing (keyless cosign), SBOM generation (SPDX), and provenance attestation.
+
+### GitOps and Secret Management
+Argo CD ApplicationSet for declarative multi-environment promotion (dev, staging, prod). External Secrets Operator integration with AWS Secrets Manager for automated secret rotation. Rotation runbook with emergency revocation procedures.
 
 ## Architecture
 
@@ -163,7 +172,9 @@ graph TB
 | Vector Store | PostgreSQL 16+ with pgvector |
 | Containerisation | Docker (Python 3.12-slim) |
 | Orchestration | Kubernetes, Helm v3 |
+| Observability | Prometheus metrics, Grafana dashboards, OpenTelemetry collector |
 | CI/CD | GitHub Actions (test, deploy-smoke, release) |
+| GitOps | Argo CD ApplicationSet, External Secrets Operator |
 | Supply Chain | Cosign (keyless signing), SPDX SBOM, provenance attestation |
 | Package Management | uv |
 | Quality | pytest, ruff, mypy (strict mode) |
@@ -265,13 +276,16 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 
 | Metric | Value |
 |---|---|
-| Python source files | 73 |
-| Test files | 28 |
+| Python source files | 76 |
+| Test files | 30 |
 | Test coverage scope | Unit, integration, contract, benchmark validation |
 | CI pipelines | 3 (test, deploy-smoke on kind, signed release) |
 | JSON Schema contracts | 3 (policy decision, audit event, citations) |
 | Benchmark eval gates | 2 (citation integrity, pgvector ranking) |
-| Current version | 0.2.0 |
+| Prometheus metrics | 6 counters + 1 histogram |
+| Grafana dashboard panels | 10 (request, policy, cost, data protection) |
+| GitOps environments | 3 (dev, staging, prod via Argo CD) |
+| Current version | 0.3.0-rc1 |
 
 ## Quick Start
 
@@ -331,6 +345,7 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
 | [`docs/strategy/killer-demo-stories.md`](docs/strategy/killer-demo-stories.md) | 5 measurable demo scenarios |
 | [`docs/benchmarks/governance-yield-vs-performance-overhead.md`](docs/benchmarks/governance-yield-vs-performance-overhead.md) | Full benchmark methodology |
 | [`docs/operations/helm-kind-runbook.md`](docs/operations/helm-kind-runbook.md) | Local Kubernetes deployment guide |
+| [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Current release notes |
 
@@ -345,11 +360,14 @@ This project makes narrow, testable claims — not aspirational ones:
 
 ## Roadmap
 
-1. GitOps manifests (Argo CD) for declarative promotion
-2. External secrets integration and rotation runbook
-3. Baseline Grafana dashboards for request/policy/cost telemetry
-4. Multi-provider routing with cost-aware fallback
-5. Streaming support for chat completions
+- [x] Multi-provider routing with cost-aware fallback
+- [x] Baseline Grafana dashboards for request/policy/cost telemetry
+- [x] External secrets integration and rotation runbook
+- [x] GitOps manifests (Argo CD) for declarative promotion
+- [ ] Streaming support for chat completions
+- [ ] Azure/Anthropic provider adapters
+- [ ] S3 connector for document retrieval
+- [ ] EKS reference deployment with validated guide
 
 ## Licence
 

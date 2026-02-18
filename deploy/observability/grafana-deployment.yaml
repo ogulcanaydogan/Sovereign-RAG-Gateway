@@ -47,4 +47,4 @@ spec:
             name: grafana-dashboard-provider
         - name: grafana-dashboards
           configMap:
-            name: grafana-llm-slo-dashboard
+            name: grafana-srg-dashboard

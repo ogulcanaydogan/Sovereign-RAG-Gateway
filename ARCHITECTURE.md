@@ -50,7 +50,11 @@ app/
 │
 ├── providers/            # Upstream LLM provider abstraction
 │   ├── base.py           # ChatProvider interface
+│   ├── registry.py       # ProviderRegistry — multi-provider routing with cost-aware fallback
+│   ├── http_openai.py    # HTTPOpenAIProvider — real OpenAI-compatible HTTP adapter
 │   └── stub.py           # In-memory mock for testing
+│
+├── metrics.py            # Prometheus metrics — counters, histograms, /metrics endpoint
 │
 ├── models/               # Shared Pydantic models
 ├── config/               # Settings management (Pydantic BaseSettings)
@@ -242,6 +246,60 @@ Two embedding generators address different deployment constraints:
 ### Policy-Scoped Retrieval
 The RetrievalOrchestrator enforces retrieval constraints from the policy decision. A tenant's policy might permit access to `filesystem` but deny `postgres`, or permit retrieval from specific document partitions. These constraints are enforced at the orchestrator level — prompt injection attempts to override source scope are ineffective because authorisation is decoupled from prompt content.
 
+## Provider Registry and Fallback Routing
+
+The gateway supports multiple upstream LLM providers through a registry pattern with cost-aware selection and automatic failover.
+
+```mermaid
+flowchart TD
+    REQ["Chat/Embeddings\nRequest"] --> REG["Provider Registry"]
+
+    REG --> SELECT{"Select\nPrimary"}
+
+    SELECT --> P1["Provider A\n(priority: 10)"]
+    P1 -->|"success"| OK["Return Response"]
+    P1 -->|"429/502/503"| FB{"Fallback?"}
+
+    FB -->|"next in chain"| P2["Provider B\n(priority: 50)"]
+    P2 -->|"success"| OK
+    P2 -->|"429/502/503"| P3["Provider C\n(priority: 100, stub)"]
+    P3 --> OK
+
+    FB -->|"no more providers"| ERR["ProviderError"]
+
+    REG --> COST["cheapest_for_tokens()\n(cost-aware selection)"]
+    COST -.-> SELECT
+
+    style REG fill:#e3f2fd,stroke:#1565c0
+    style OK fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style ERR fill:#d32f2f,color:#fff,stroke:#b71c1c
+    style COST fill:#fff3e0,stroke:#e65100
+```
+
+**Routing behaviour:**
+- Primary provider is attempted first. On retryable errors (429, 502, 503), the next provider in the fallback chain is tried.
+- Fallback chain is ordered: primary first, then remaining enabled providers sorted by priority.
+- `cheapest_for_tokens()` selects the lowest-cost provider for a given token estimate.
+- Routing results (provider name, attempts, fallback chain) are recorded in audit events for forensic analysis.
+
+## Observability
+
+The gateway exposes a `/metrics` endpoint in Prometheus text format. No external dependency is required — the collector is implemented in-process with thread-safe counters and histograms.
+
+**Metrics exposed:**
+
+| Metric | Type | Labels |
+|---|---|---|
+| `srg_requests_total` | counter | endpoint, provider, model, status |
+| `srg_policy_decisions_total` | counter | endpoint, decision |
+| `srg_request_duration_seconds` | histogram | endpoint, provider, model |
+| `srg_tokens_total` | counter | endpoint, provider, model, direction |
+| `srg_cost_usd_total` | counter | endpoint, provider, model |
+| `srg_redactions_total` | counter | endpoint |
+| `srg_provider_fallbacks_total` | counter | provider |
+
+**Grafana dashboard:** a pre-built ConfigMap under `deploy/observability/` provides 10 panels covering request rates, latency percentiles (p50/p95/p99), policy decision distribution, token throughput, hourly cost estimates, provider fallback rates, and redaction activity.
+
 ## Audit Trail Design
 
 Audit events are append-only JSON Lines records. Each event is self-contained and linked to the originating request by `request_id`.
@@ -385,6 +443,58 @@ Three GitHub Actions workflows:
 1. **ci.yml**: lint (ruff), type check (mypy), test (pytest), schema validation on every push/PR
 2. **deploy-smoke.yml**: spins up a kind cluster, installs the Helm chart, validates rollout and endpoint health
 3. **release.yml**: triggered by `v*` tags — builds and pushes to GHCR, signs with cosign (keyless), generates SPDX SBOM, attaches provenance attestation, publishes release notes from CHANGELOG.md
+
+## GitOps Deployment Model
+
+The gateway supports declarative multi-environment promotion through Argo CD and secret management through External Secrets Operator.
+
+```mermaid
+flowchart LR
+    subgraph REPO["Git Repository"]
+        direction TB
+        CHART["Helm Chart\n(charts/)"]
+        DEV_V["dev/values.yaml"]
+        STG_V["staging/values.yaml"]
+        PROD_V["prod/values.yaml"]
+    end
+
+    subgraph ARGOCD["Argo CD"]
+        direction TB
+        APPSET["ApplicationSet\n(env generator)"]
+    end
+
+    subgraph K8S["Kubernetes"]
+        direction TB
+        DEV_NS["srg-system\n(dev)"]
+        STG_NS["srg-staging\n(staging)"]
+        PROD_NS["srg-prod\n(prod)"]
+    end
+
+    subgraph ESO["External Secrets"]
+        direction TB
+        AWS["AWS Secrets\nManager"]
+        SYNC["ESO Controller\n(1h refresh)"]
+    end
+
+    REPO --> APPSET
+    APPSET --> DEV_NS
+    APPSET --> STG_NS
+    APPSET --> PROD_NS
+
+    AWS --> SYNC
+    SYNC --> DEV_NS
+    SYNC --> STG_NS
+    SYNC --> PROD_NS
+
+    style REPO fill:#e3f2fd,stroke:#1565c0
+    style ARGOCD fill:#fff3e0,stroke:#e65100
+    style K8S fill:#e8f5e9,stroke:#2e7d32
+    style ESO fill:#ede7f6,stroke:#4527a0
+```
+
+**Argo CD ApplicationSet:** generates one Application per environment from a list generator. Dev and staging auto-sync; prod requires manual sync approval.
+
+**External Secrets Operator:** syncs API keys and provider credentials from AWS Secrets Manager into Kubernetes Secrets. Rotation runbook covers standard rotation, emergency revocation, and sync monitoring.
 
 ## Key Tradeoffs
 

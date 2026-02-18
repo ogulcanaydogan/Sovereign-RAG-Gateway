@@ -9,6 +9,7 @@ from fastapi import Request
 from app.audit.writer import AuditValidationError, AuditWriter
 from app.config.settings import Settings
 from app.core.errors import AppError
+from app.metrics import record_request
 from app.models.openai import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -20,6 +21,11 @@ from app.policy.client import OPAClient, PolicyTimeoutError, PolicyValidationErr
 from app.policy.models import PolicyDecision
 from app.policy.transforms import apply_transforms
 from app.providers.base import ChatProvider, ProviderError
+from app.providers.registry import (
+    ProviderRegistry,
+    route_embeddings_with_fallback,
+    route_with_fallback,
+)
 from app.rag.retrieval import (
     ConnectorNotFoundError,
     RetrievalDeniedError,
@@ -41,6 +47,7 @@ class ChatService:
         redaction_engine: RedactionEngine,
         audit_writer: AuditWriter,
         retrieval_orchestrator: RetrievalOrchestrator | None = None,
+        provider_registry: ProviderRegistry | None = None,
     ):
         self._settings = settings
         self._policy_client = policy_client
@@ -48,6 +55,7 @@ class ChatService:
         self._redaction_engine = redaction_engine
         self._audit_writer = audit_writer
         self._retrieval_orchestrator = retrieval_orchestrator
+        self._provider_registry = provider_registry
 
     async def handle_chat(
         self, request: Request, payload: ChatCompletionRequest
@@ -110,8 +118,25 @@ class ChatService:
         selected_model = str(transformed_request.get("model", payload.model))
         max_tokens = transformed_request.get("max_tokens")
 
+        routed_provider = self._settings.provider_name
+        provider_attempts = 1
+        fallback_chain: list[str] = [routed_provider]
+
         try:
-            provider_result = await self._provider.chat(selected_model, messages, max_tokens)
+            if self._provider_registry and self._settings.provider_fallback_enabled:
+                routing_result = await route_with_fallback(
+                    self._provider_registry,
+                    self._settings.provider_name,
+                    selected_model,
+                    messages,
+                    max_tokens,
+                )
+                provider_result = routing_result.result
+                routed_provider = routing_result.provider_name
+                provider_attempts = routing_result.attempts
+                fallback_chain = routing_result.fallback_chain
+            else:
+                provider_result = await self._provider.chat(selected_model, messages, max_tokens)
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = ChatCompletionResponse.model_validate(provider_result)
@@ -124,14 +149,14 @@ class ChatService:
         tokens_out = response.usage.completion_tokens
         cost_usd = round((tokens_in + tokens_out) * 0.000001, 8)
 
-        audit_event = {
+        audit_event: dict[str, object] = {
             "request_id": request_id,
             "tenant_id": tenant_id,
             "user_id": user_id,
             "endpoint": str(request.url.path),
             "requested_model": payload.model,
             "selected_model": selected_model,
-            "provider": self._settings.provider_name,
+            "provider": routed_provider,
             "policy_decision": policy_decision_label,
             "transforms_applied": [action.type for action in decision.transforms],
             "redaction_count": redaction_count,
@@ -139,6 +164,8 @@ class ChatService:
             "tokens_out": tokens_out,
             "cost_usd": cost_usd,
             "policy_hash": decision.policy_hash,
+            "provider_attempts": provider_attempts,
+            "fallback_chain": fallback_chain,
         }
         if decision.deny_reason is not None:
             audit_event["deny_reason"] = decision.deny_reason
@@ -160,13 +187,29 @@ class ChatService:
                 "model": selected_model,
                 "policy_decision": policy_decision_label,
                 "redaction_count": redaction_count,
-                "provider": self._settings.provider_name,
+                "provider": routed_provider,
                 "latency_ms": latency_ms,
                 "token_in": tokens_in,
                 "token_out": tokens_out,
                 "cost_usd": cost_usd,
+                "provider_attempts": provider_attempts,
+                "fallback_chain": fallback_chain,
             },
         )
+        if self._settings.metrics_enabled:
+            record_request(
+                endpoint=str(request.url.path),
+                provider=routed_provider,
+                model=selected_model,
+                policy_decision=policy_decision_label,
+                status_code=200,
+                latency_s=latency_ms / 1000.0,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cost_usd=cost_usd,
+                redaction_count=redaction_count,
+                provider_attempts=provider_attempts,
+            )
         return response
 
     async def handle_embeddings(
@@ -213,8 +256,24 @@ class ChatService:
             inputs = [item["content"] for item in redaction_result.messages]
             redaction_count = redaction_result.redaction_count
 
+        routed_provider = self._settings.provider_name
+        provider_attempts = 1
+        fallback_chain: list[str] = [routed_provider]
+
         try:
-            provider_result = await self._provider.embeddings(selected_model, inputs)
+            if self._provider_registry and self._settings.provider_fallback_enabled:
+                routing_result = await route_embeddings_with_fallback(
+                    self._provider_registry,
+                    self._settings.provider_name,
+                    selected_model,
+                    inputs,
+                )
+                provider_result = routing_result.result
+                routed_provider = routing_result.provider_name
+                provider_attempts = routing_result.attempts
+                fallback_chain = routing_result.fallback_chain
+            else:
+                provider_result = await self._provider.embeddings(selected_model, inputs)
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = EmbeddingsResponse.model_validate(provider_result)
@@ -224,14 +283,14 @@ class ChatService:
         cost_usd = round(tokens_in * 0.0000002, 8)
         policy_decision_label = self._policy_decision_label(decision)
 
-        audit_event = {
+        audit_event: dict[str, object] = {
             "request_id": request_id,
             "tenant_id": tenant_id,
             "user_id": user_id,
             "endpoint": str(request.url.path),
             "requested_model": payload.model,
             "selected_model": selected_model,
-            "provider": self._settings.provider_name,
+            "provider": routed_provider,
             "policy_decision": policy_decision_label,
             "transforms_applied": [action.type for action in decision.transforms],
             "redaction_count": redaction_count,
@@ -239,6 +298,8 @@ class ChatService:
             "tokens_out": tokens_out,
             "cost_usd": cost_usd,
             "policy_hash": decision.policy_hash,
+            "provider_attempts": provider_attempts,
+            "fallback_chain": fallback_chain,
         }
         if decision.deny_reason is not None:
             audit_event["deny_reason"] = decision.deny_reason
@@ -260,22 +321,41 @@ class ChatService:
                 "model": selected_model,
                 "policy_decision": policy_decision_label,
                 "redaction_count": redaction_count,
-                "provider": self._settings.provider_name,
+                "provider": routed_provider,
                 "latency_ms": latency_ms,
                 "token_in": tokens_in,
                 "token_out": tokens_out,
                 "cost_usd": cost_usd,
             },
         )
+        if self._settings.metrics_enabled:
+            record_request(
+                endpoint=str(request.url.path),
+                provider=routed_provider,
+                model=selected_model,
+                policy_decision=policy_decision_label,
+                status_code=200,
+                latency_s=latency_ms / 1000.0,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cost_usd=cost_usd,
+                redaction_count=redaction_count,
+                provider_attempts=provider_attempts,
+            )
         return response
 
     def readiness(self) -> dict[str, str]:
         policy_schema = self._settings.contracts_dir / "policy-decision.schema.json"
         audit_schema = self._settings.contracts_dir / "audit-event.schema.json"
+        providers_status = "ok"
+        if self._provider_registry:
+            providers_status = (
+                "ok" if self._provider_registry.list_providers() else "no_providers"
+            )
         return {
             "policy_schema": "ok" if policy_schema.exists() else "missing",
             "audit_schema": "ok" if audit_schema.exists() else "missing",
-            "provider": "ok",
+            "provider": providers_status,
         }
 
     def list_models(self) -> dict[str, object]:

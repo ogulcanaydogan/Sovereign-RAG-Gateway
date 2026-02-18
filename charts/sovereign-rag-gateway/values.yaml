@@ -16,7 +16,10 @@ serviceAccount:
 rbac:
   create: false
 
-podAnnotations: {}
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
 podLabels: {}
 
 podSecurityContext:
@@ -64,6 +67,8 @@ env:
   ragAllowedConnectors: filesystem
   logLevel: INFO
   auditLogPath: /tmp/audit/events.jsonl
+  metricsEnabled: true
+  providerFallbackEnabled: true
 
 probes:
   liveness:

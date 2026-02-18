@@ -15,3 +15,5 @@ data:
   SRG_RAG_ALLOWED_CONNECTORS: {{ .Values.env.ragAllowedConnectors | quote }}
   SRG_LOG_LEVEL: {{ .Values.env.logLevel | quote }}
   SRG_AUDIT_LOG_PATH: {{ .Values.env.auditLogPath | quote }}
+  SRG_METRICS_ENABLED: {{ .Values.env.metricsEnabled | quote }}
+  SRG_PROVIDER_FALLBACK_ENABLED: {{ .Values.env.providerFallbackEnabled | quote }}

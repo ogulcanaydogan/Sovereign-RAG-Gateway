@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: srg-environments
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: srg-system
+            targetRevision: main
+            autoSync: "true"
+          - env: staging
+            namespace: srg-staging
+            targetRevision: main
+            autoSync: "true"
+          - env: prod
+            namespace: srg-prod
+            targetRevision: main
+            autoSync: "false"
+  template:
+    metadata:
+      name: "srg-{{env}}"
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: sovereign-rag-gateway
+      source:
+        repoURL: https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway.git
+        targetRevision: "{{targetRevision}}"
+        path: charts/sovereign-rag-gateway
+        helm:
+          valueFiles:
+            - "../../deploy/gitops/envs/{{env}}/values.yaml"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
