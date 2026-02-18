@@ -4,7 +4,7 @@ Versioned public interface contracts for governance and traceability.
 
 ## Schemas
 - `policy-decision.schema.json`: output contract for policy engine decisions.
-- `audit-event.schema.json`: immutable audit event payload contract.
+- `audit-event.schema.json`: immutable audit event payload contract including policy explainability fields (`policy_decision_id`, `policy_evaluated_at`, `policy_mode`).
 - `citations-extension.schema.json`: response extension for RAG citations.
 
 ## Compatibility Policy

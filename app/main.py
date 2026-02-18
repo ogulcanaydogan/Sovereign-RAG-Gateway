@@ -14,7 +14,7 @@ from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
 from app.providers.anthropic import AnthropicProvider
 from app.providers.azure_openai import AzureOpenAIProvider
-from app.providers.base import ChatProvider
+from app.providers.base import ChatProvider, ProviderCapabilities
 from app.providers.http_openai import HTTPOpenAIProvider
 from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
@@ -61,6 +61,11 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
             name="stub",
             provider=stub,
             cost=ProviderCost(input_per_token=0.000001, output_per_token=0.000001),
+            capabilities=ProviderCapabilities(
+                chat=True,
+                embeddings=True,
+                streaming=True,
+            ),
             priority=100,
         )
     )
@@ -68,13 +73,31 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
     if settings.provider_config:
         for entry in json_mod.loads(settings.provider_config):
             provider_type = str(entry.get("type", "openai_compatible")).strip().lower()
+            raw_capabilities_cfg = entry.get("capabilities", {})
+            capabilities_cfg = (
+                raw_capabilities_cfg if isinstance(raw_capabilities_cfg, dict) else {}
+            )
+            model_prefixes = tuple(str(item) for item in capabilities_cfg.get("model_prefixes", []))
             provider: ChatProvider
+            capabilities = ProviderCapabilities(
+                chat=bool(capabilities_cfg.get("chat", True)),
+                embeddings=bool(capabilities_cfg.get("embeddings", True)),
+                streaming=bool(capabilities_cfg.get("streaming", True)),
+                model_prefixes=model_prefixes,
+            )
             if provider_type in {"openai_compatible", "openai"}:
                 provider = HTTPOpenAIProvider(
                     base_url=entry["base_url"],
                     api_key=entry["api_key"],
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=True,
+                        streaming=True,
+                        model_prefixes=model_prefixes,
+                    )
             elif provider_type == "azure_openai":
                 provider = AzureOpenAIProvider(
                     endpoint=entry["endpoint"],
@@ -82,6 +105,13 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                     api_version=entry.get("api_version", "2024-10-21"),
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=True,
+                        streaming=True,
+                        model_prefixes=model_prefixes,
+                    )
             elif provider_type == "anthropic":
                 provider = AnthropicProvider(
                     api_key=entry["api_key"],
@@ -89,6 +119,13 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                     anthropic_version=entry.get("anthropic_version", "2023-06-01"),
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=False,
+                        streaming=False,
+                        model_prefixes=model_prefixes,
+                    )
             else:
                 raise RuntimeError(
                     f"Unsupported provider type in SRG_PROVIDER_CONFIG: {provider_type}"
@@ -102,6 +139,7 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                         input_per_token=cost_cfg.get("input_per_token", 0.0),
                         output_per_token=cost_cfg.get("output_per_token", 0.0),
                     ),
+                    capabilities=capabilities,
                     priority=entry.get("priority", 50),
                     enabled=entry.get("enabled", True),
                 )

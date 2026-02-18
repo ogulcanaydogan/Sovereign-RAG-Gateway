@@ -43,3 +43,42 @@ def test_citations_schema_fixture() -> None:
         ]
     }
     validate(instance=fixture, schema=schema)
+
+
+def test_audit_event_schema_fixture() -> None:
+    root = Path(__file__).resolve().parents[2]
+    schema = json.loads(
+        (root / "docs/contracts/v1/audit-event.schema.json").read_text(encoding="utf-8")
+    )
+    fixture = {
+        "event_id": "evt-1",
+        "request_id": "req-1",
+        "tenant_id": "tenant-a",
+        "user_id": "user-1",
+        "endpoint": "/v1/chat/completions",
+        "requested_model": "gpt-4o-mini",
+        "selected_model": "gpt-4o-mini",
+        "provider": "stub",
+        "policy_decision": "transform",
+        "policy_decision_id": "decision-1",
+        "policy_evaluated_at": "2026-02-17T00:00:00Z",
+        "policy_allow": True,
+        "policy_mode": "enforce",
+        "transforms_applied": ["set_max_tokens"],
+        "redaction_count": 1,
+        "tokens_in": 10,
+        "tokens_out": 12,
+        "cost_usd": 0.000022,
+        "policy_hash": "hash",
+        "provider_constraints": {
+            "allowed_providers": ["stub"],
+            "allowed_models": ["gpt-4o-mini"],
+        },
+        "connector_constraints": {"allowed_connectors": ["filesystem"]},
+        "provider_attempts": 1,
+        "fallback_chain": ["stub"],
+        "payload_hash": "hash-a",
+        "prev_hash": "",
+        "created_at": "2026-02-17T00:00:01Z",
+    }
+    validate(instance=fixture, schema=schema)

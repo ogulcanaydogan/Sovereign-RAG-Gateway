@@ -43,6 +43,8 @@ jobs:
         run: uv run mypy app scripts
       - name: Validate contracts
         run: uv run python scripts/validate_schemas.py
+      - name: Version sync check
+        run: uv run python scripts/check_version_sync.py
       - name: Prepare RAG fixtures
         run: |
           uv run python scripts/generate_synthetic_healthcare_corpus.py --output-dir benchmarks/data/synthetic_corpus
@@ -70,5 +72,17 @@ jobs:
             --threshold 0.8
       - name: Migration checks
         run: uv run python scripts/check_migration_v020rc1.py
+      - name: Governance benchmark gate
+        run: |
+          uv run python scripts/benchmark_runner.py \
+            --scenario enforce_redact \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out artifacts/benchmarks/governance
+          uv run python scripts/check_benchmark_thresholds.py \
+            --summary artifacts/benchmarks/governance/results_summary.json \
+            --max-leakage-rate 0.005 \
+            --max-latency-p95-ms 250 \
+            --max-cost-drift-pct 5 \
+            --min-citation-presence-rate 0.5
       - name: Tests
         run: uv run pytest

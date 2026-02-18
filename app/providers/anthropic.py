@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from time import time
 from uuid import uuid4
 
@@ -84,6 +85,26 @@ class AnthropicProvider:
             code="provider_embeddings_unsupported",
             message="Anthropic provider does not expose embeddings for this gateway",
         )
+
+    def chat_stream(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int | None,
+    ) -> AsyncIterator[dict[str, object]]:
+        _ = model
+        _ = messages
+        _ = max_tokens
+
+        async def _unsupported_stream() -> AsyncIterator[dict[str, object]]:
+            raise ProviderError(
+                status_code=501,
+                code="provider_streaming_unsupported",
+                message="Anthropic provider streaming is not enabled for this gateway",
+            )
+            yield {}
+
+        return _unsupported_stream()
 
     def _normalize_messages(
         self, messages: list[dict[str, str]]

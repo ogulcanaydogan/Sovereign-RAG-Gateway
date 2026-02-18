@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from time import time
 from uuid import uuid4
 
@@ -43,6 +44,82 @@ class StubProvider:
                 "total_tokens": prompt_tokens + completion_tokens,
             },
             "max_tokens_applied": max_tokens,
+        }
+
+    async def chat_stream(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int | None,
+    ) -> AsyncIterator[dict[str, object]]:
+        response = await self.chat(model=model, messages=messages, max_tokens=max_tokens)
+        content = ""
+        choices_raw = response.get("choices")
+        if isinstance(choices_raw, list) and choices_raw:
+            first_choice = choices_raw[0]
+            if isinstance(first_choice, dict):
+                message_raw = first_choice.get("message")
+                if isinstance(message_raw, dict):
+                    content_raw = message_raw.get("content")
+                    if isinstance(content_raw, str):
+                        content = content_raw
+
+        created_raw = response.get("created")
+        created = (
+            int(created_raw)
+            if isinstance(created_raw, int | float | str)
+            else int(time())
+        )
+        response_id = str(response.get("id", f"chatcmpl-{uuid4().hex}"))
+        chunk_size = 32
+
+        pieces = [content[idx : idx + chunk_size] for idx in range(0, len(content), chunk_size)]
+        if not pieces:
+            pieces = [""]
+
+        first = pieces[0]
+        yield {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": first},
+                    "finish_reason": None,
+                }
+            ],
+        }
+
+        for piece in pieces[1:]:
+            yield {
+                "id": response_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"content": piece},
+                        "finish_reason": None,
+                    }
+                ],
+            }
+
+        yield {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": response.get("usage", {}),
         }
 
     async def embeddings(self, model: str, inputs: list[str]) -> dict[str, object]:

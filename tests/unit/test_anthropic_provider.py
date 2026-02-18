@@ -41,3 +41,13 @@ def test_anthropic_embeddings_not_supported() -> None:
     provider = AnthropicProvider(api_key="secret")
     with pytest.raises(ProviderError, match="does not expose embeddings"):
         asyncio.run(provider.embeddings(model="claude", inputs=["hello"]))
+
+
+def test_anthropic_chat_stream_not_supported() -> None:
+    provider = AnthropicProvider(api_key="secret")
+    with pytest.raises(ProviderError, match="streaming is not enabled"):
+        asyncio.run(_collect(provider.chat_stream(model="claude", messages=[], max_tokens=16)))
+
+
+async def _collect(stream):
+    return [chunk async for chunk in stream]
