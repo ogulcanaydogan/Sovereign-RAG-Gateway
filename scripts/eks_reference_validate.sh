@@ -10,6 +10,25 @@ mkdir -p "$(dirname "${RENDERED_FILE}")"
 
 helm lint "${CHART_DIR}"
 helm template srg "${CHART_DIR}" -f "${VALUES_FILE}" >"${RENDERED_FILE}"
-kubectl apply --dry-run=client --validate=false -f "${RENDERED_FILE}" >/dev/null
+
+if [[ ! -s "${RENDERED_FILE}" ]]; then
+  echo "Rendered manifest is empty: ${RENDERED_FILE}" >&2
+  exit 1
+fi
+
+if ! grep -q "^apiVersion:" "${RENDERED_FILE}"; then
+  echo "Rendered manifest missing apiVersion entries" >&2
+  exit 1
+fi
+
+if ! grep -q "^kind: Deployment$" "${RENDERED_FILE}"; then
+  echo "Rendered manifest missing Deployment kind" >&2
+  exit 1
+fi
+
+if ! grep -q "^kind: Service$" "${RENDERED_FILE}"; then
+  echo "Rendered manifest missing Service kind" >&2
+  exit 1
+fi
 
 echo "EKS reference validation passed"
