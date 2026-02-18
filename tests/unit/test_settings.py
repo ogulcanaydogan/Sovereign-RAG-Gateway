@@ -25,3 +25,8 @@ def test_postgres_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_confluence_spaces_parses_values() -> None:
     settings = Settings(rag_confluence_spaces="OPS, ENG,SEC")
     assert settings.rag_confluence_space_set == {"OPS", "ENG", "SEC"}
+
+
+def test_jira_project_keys_parses_values() -> None:
+    settings = Settings(rag_jira_project_keys="OPS, ENG,SEC")
+    assert settings.rag_jira_project_key_set == {"OPS", "ENG", "SEC"}

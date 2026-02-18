@@ -715,7 +715,9 @@ python scripts/audit_replay_bundle.py \
 | [`docs/architecture/threat-model.md`](docs/architecture/threat-model.md) | Threat matrix, controls, and residual risk |
 | [`docs/operations/helm-kind-runbook.md`](docs/operations/helm-kind-runbook.md) | Local Kubernetes deployment guide |
 | [`docs/operations/confluence-connector.md`](docs/operations/confluence-connector.md) | Confluence read-only connector setup |
+| [`docs/operations/jira-connector.md`](docs/operations/jira-connector.md) | Jira read-only connector setup |
 | [`docs/operations/compliance-control-mapping.md`](docs/operations/compliance-control-mapping.md) | Technical control-to-evidence mapping |
+| [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Current release notes |
@@ -741,6 +743,8 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] EKS reference deployment with validated guide
 - [x] Evidence replay bundle export and schema
 - [x] Confluence read-only connector
+- [x] Jira read-only connector
+- [x] Signed evidence bundle output (detached signature + verification)
 
 ## Licence
 

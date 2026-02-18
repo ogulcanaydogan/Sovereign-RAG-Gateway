@@ -63,11 +63,17 @@ jobs:
           PY
       - name: Build evidence bundle
         run: |
+          mkdir -p artifacts/evidence
+          openssl genrsa -out artifacts/evidence-private.pem 2048
+          openssl rsa -in artifacts/evidence-private.pem -pubout -out artifacts/evidence/public.pem
           uv run python scripts/audit_replay_bundle.py \
             --request-id "${{ steps.request.outputs.request_id }}" \
             --audit-log "${{ steps.request.outputs.audit_log }}" \
             --out-dir artifacts/evidence \
-            --include-chain-verify
+            --include-chain-verify \
+            --sign-private-key artifacts/evidence-private.pem \
+            --verify-public-key artifacts/evidence/public.pem
+          rm -f artifacts/evidence-private.pem
       - name: Validate schemas
         run: uv run python scripts/validate_schemas.py
       - name: Upload evidence artifact

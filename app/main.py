@@ -20,6 +20,7 @@ from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
 from app.rag.connectors.confluence import ConfluenceConnector
 from app.rag.connectors.filesystem import FilesystemConnector
+from app.rag.connectors.jira import JiraConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
 from app.rag.embeddings import (
@@ -200,6 +201,17 @@ def create_app() -> FastAPI:
                 api_token=settings.rag_confluence_api_token,
                 spaces=settings.rag_confluence_space_set,
                 cache_ttl_seconds=settings.rag_confluence_cache_ttl_seconds,
+            ),
+        )
+    if settings.rag_jira_base_url and settings.rag_jira_email and settings.rag_jira_api_token:
+        connector_registry.register(
+            "jira",
+            JiraConnector(
+                base_url=settings.rag_jira_base_url,
+                email=settings.rag_jira_email,
+                api_token=settings.rag_jira_api_token,
+                project_keys=settings.rag_jira_project_key_set,
+                cache_ttl_seconds=settings.rag_jira_cache_ttl_seconds,
             ),
         )
 

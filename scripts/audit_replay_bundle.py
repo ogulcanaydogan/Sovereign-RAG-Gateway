@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -19,6 +20,8 @@ class ReplayResult:
     sha256_path: Path
     markdown_path: Path
     chain_verified: bool
+    signature_path: Path | None = None
+    signature_verified: bool | None = None
 
 
 def _canonical_json(payload: object) -> str:
@@ -197,11 +200,65 @@ def _write_bundle_files(bundle: dict[str, Any], request_id: str, out_dir: Path) 
     )
 
 
+def _run_openssl(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def sign_bundle(
+    bundle_path: Path,
+    private_key_path: Path,
+    signature_path: Path,
+) -> None:
+    _run_openssl(
+        [
+            "openssl",
+            "dgst",
+            "-sha256",
+            "-sign",
+            str(private_key_path),
+            "-out",
+            str(signature_path),
+            str(bundle_path),
+        ]
+    )
+
+
+def verify_bundle_signature(
+    bundle_path: Path,
+    public_key_path: Path,
+    signature_path: Path,
+) -> bool:
+    try:
+        result = _run_openssl(
+            [
+                "openssl",
+                "dgst",
+                "-sha256",
+                "-verify",
+                str(public_key_path),
+                "-signature",
+                str(signature_path),
+                str(bundle_path),
+            ]
+        )
+    except subprocess.CalledProcessError:
+        return False
+    output = f"{result.stdout}\n{result.stderr}".lower()
+    return "verified ok" in output
+
+
 def generate_bundle(
     request_id: str,
     audit_log_path: Path,
     out_dir: Path,
     include_chain_verify: bool,
+    sign_private_key: Path | None = None,
+    verify_public_key: Path | None = None,
 ) -> ReplayResult:
     events = load_audit_events(audit_log_path)
     matched = _find_last_event_for_request(events, request_id)
@@ -230,7 +287,34 @@ def generate_bundle(
     schema = _load_json_schema(schema_path)
     validate(instance=bundle, schema=schema)
 
-    return _write_bundle_files(bundle=bundle, request_id=request_id, out_dir=out_dir)
+    result = _write_bundle_files(bundle=bundle, request_id=request_id, out_dir=out_dir)
+    if sign_private_key is None:
+        return result
+
+    signature_path = result.bundle_path.parent / "bundle.sig"
+    sign_bundle(
+        bundle_path=result.bundle_path,
+        private_key_path=sign_private_key,
+        signature_path=signature_path,
+    )
+
+    signature_verified: bool | None = None
+    if verify_public_key is not None:
+        signature_verified = verify_bundle_signature(
+            bundle_path=result.bundle_path,
+            public_key_path=verify_public_key,
+            signature_path=signature_path,
+        )
+
+    return ReplayResult(
+        request_id=result.request_id,
+        bundle_path=result.bundle_path,
+        sha256_path=result.sha256_path,
+        markdown_path=result.markdown_path,
+        chain_verified=result.chain_verified,
+        signature_path=signature_path,
+        signature_verified=signature_verified,
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -242,6 +326,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--include-chain-verify",
         action="store_true",
         help="Verify hash chain integrity for all audit events",
+    )
+    parser.add_argument(
+        "--sign-private-key",
+        default=None,
+        help="OpenSSL private key path for detached signature output",
+    )
+    parser.add_argument(
+        "--verify-public-key",
+        default=None,
+        help="Optional OpenSSL public key path to verify generated signature",
     )
     return parser.parse_args(argv)
 
@@ -255,6 +349,8 @@ def main(argv: list[str] | None = None) -> None:
             audit_log_path=Path(args.audit_log),
             out_dir=Path(args.out_dir),
             include_chain_verify=bool(args.include_chain_verify),
+            sign_private_key=Path(args.sign_private_key) if args.sign_private_key else None,
+            verify_public_key=Path(args.verify_public_key) if args.verify_public_key else None,
         )
     except LookupError as exc:
         print(str(exc))
@@ -263,6 +359,10 @@ def main(argv: list[str] | None = None) -> None:
     print(f"bundle: {result.bundle_path}")
     print(f"sha256: {result.sha256_path}")
     print(f"markdown: {result.markdown_path}")
+    if result.signature_path is not None:
+        print(f"signature: {result.signature_path}")
+    if result.signature_verified is not None:
+        print(f"signature_verified: {result.signature_verified}")
 
 
 if __name__ == "__main__":

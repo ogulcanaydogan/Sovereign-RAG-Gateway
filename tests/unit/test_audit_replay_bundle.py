@@ -7,6 +7,7 @@ from scripts.audit_replay_bundle import (
     _hash_payload,
     generate_bundle,
     main,
+    verify_bundle_signature,
 )
 
 
@@ -110,3 +111,50 @@ def test_request_not_found_exits_with_code_2(tmp_path: Path) -> None:
         )
 
     assert exc.value.code == 2
+
+
+def test_generate_bundle_with_detached_signature(tmp_path: Path) -> None:
+    private_key = tmp_path / "private.pem"
+    public_key = tmp_path / "public.pem"
+
+    import subprocess
+
+    subprocess.run(
+        ["openssl", "genrsa", "-out", str(private_key), "2048"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["openssl", "rsa", "-in", str(private_key), "-pubout", "-out", str(public_key)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    log_path = tmp_path / "events.jsonl"
+    _write_event(log_path, _base_event("req-sign", prev_hash=""))
+
+    result = generate_bundle(
+        request_id="req-sign",
+        audit_log_path=log_path,
+        out_dir=tmp_path / "evidence",
+        include_chain_verify=True,
+        sign_private_key=private_key,
+        verify_public_key=public_key,
+    )
+
+    assert result.signature_path is not None
+    assert result.signature_path.exists()
+    assert result.signature_verified is True
+
+    tampered_bundle = result.bundle_path
+    tampered_bundle.write_text(
+        tampered_bundle.read_text(encoding="utf-8").replace("req-sign", "req-sign-tampered"),
+        encoding="utf-8",
+    )
+    assert verify_bundle_signature(
+        bundle_path=tampered_bundle,
+        public_key_path=public_key,
+        signature_path=result.signature_path,
+    ) is False

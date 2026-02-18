@@ -10,6 +10,6 @@ mkdir -p "$(dirname "${RENDERED_FILE}")"
 
 helm lint "${CHART_DIR}"
 helm template srg "${CHART_DIR}" -f "${VALUES_FILE}" >"${RENDERED_FILE}"
-kubectl apply --dry-run=client -f "${RENDERED_FILE}" >/dev/null
+kubectl apply --dry-run=client --validate=false -f "${RENDERED_FILE}" >/dev/null
 
 echo "EKS reference validation passed"

@@ -30,12 +30,28 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
       - name: Extract release notes from changelog
         run: |
           python scripts/extract_release_notes.py \
             --tag "${GITHUB_REF_NAME}" \
             --changelog CHANGELOG.md \
             --output artifacts/release-notes.md
+
+      - name: Generate signed release evidence artifacts
+        run: |
+          openssl genrsa -out artifacts/release-evidence-private.pem 2048
+          openssl rsa -in artifacts/release-evidence-private.pem -pubout -out artifacts/release-evidence-public.pem
+          uv run python scripts/generate_release_evidence_artifacts.py \
+            --out-dir artifacts \
+            --private-key artifacts/release-evidence-private.pem \
+            --public-key artifacts/release-evidence-public.pem
+          rm -f artifacts/release-evidence-private.pem
 
       - uses: docker/setup-buildx-action@v3
 
@@ -93,3 +109,4 @@ jobs:
           body_path: artifacts/release-notes.md
           files: |
             artifacts/sbom.spdx.json
+            artifacts/release-evidence/**
