@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "srg.fullname" . }}-config
+  labels:
+    {{- include "srg.labels" . | nindent 4 }}
+data:
+  SRG_ENV: {{ .Values.env.env | quote }}
+  SRG_DEFAULT_MODEL: {{ .Values.env.defaultModel | quote }}
+  SRG_MODEL_CATALOG: {{ .Values.env.modelCatalog | quote }}
+  SRG_PROVIDER_NAME: {{ .Values.env.providerName | quote }}
+  SRG_OPA_MODE: {{ .Values.env.opaMode | quote }}
+  SRG_REDACTION_ENABLED: {{ .Values.env.redactionEnabled | quote }}
+  SRG_RAG_ENABLED: {{ .Values.env.ragEnabled | quote }}
+  SRG_RAG_ALLOWED_CONNECTORS: {{ .Values.env.ragAllowedConnectors | quote }}
+  SRG_LOG_LEVEL: {{ .Values.env.logLevel | quote }}
+  SRG_AUDIT_LOG_PATH: {{ .Values.env.auditLogPath | quote }}

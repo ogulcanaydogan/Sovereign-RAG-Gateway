@@ -1,0 +1,88 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/ogulcanaydogan/sovereign-rag-gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: false
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+env:
+  apiKeys:
+    - dev-key
+  env: dev
+  defaultModel: gpt-4o-mini
+  modelCatalog: gpt-4o-mini,text-embedding-3-small
+  providerName: stub
+  opaMode: enforce
+  redactionEnabled: true
+  ragEnabled: true
+  ragAllowedConnectors: filesystem
+  logLevel: INFO
+  auditLogPath: /tmp/audit/events.jsonl
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 3
+    periodSeconds: 5
+    timeoutSeconds: 2
+
+networkPolicy:
+  enabled: true
+  allowIngressFromSameNamespace: true
+  allowDNS: true
+  extraEgressCIDRs: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

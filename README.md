@@ -13,6 +13,21 @@ Policy-first, OpenAI-compatible gateway for regulated AI workloads.
    - `make typecheck`
    - `make test`
 
+## Kubernetes (Helm + kind)
+```bash
+make helm-lint
+make helm-template
+make demo-up
+```
+
+Manual Helm install:
+```bash
+helm upgrade --install srg charts/sovereign-rag-gateway \
+  --namespace srg-system \
+  --create-namespace \
+  --set env.apiKeys[0]=dev-key
+```
+
 ## API Example
 ```bash
 curl -s http://127.0.0.1:8000/v1/chat/completions \
@@ -115,6 +130,14 @@ python3 scripts/check_migration_v020rc1.py
 ./scripts/compose_smoke.sh
 ```
 
+## Release Automation
+- Tag push matching `v*` triggers:
+  - container build and push to GHCR
+  - keyless cosign signing
+  - SPDX SBOM generation
+  - provenance attestation
+  - GitHub release notes sourced from `CHANGELOG.md`
+
 ## Differentiation Artifacts
 - `docs/strategy/differentiation-strategy.md`
 - `docs/strategy/why-this-exists-security-sre.md`
@@ -132,6 +155,6 @@ python3 scripts/check_migration_v020rc1.py
 - Wedge: policy + redaction + audit chain + constrained RAG in one deployable control plane.
 
 ## Immediate Next Steps
-1. Add Helm chart and kind deploy smoke workflow for week-7 packaging.
-2. Add OTel collector + Prometheus baseline dashboards in demo deployment.
-3. Wire release pipeline for signed artifacts and SBOM automation.
+1. Add GitOps manifests (Argo CD) for declarative promotion.
+2. Add external secrets integration and rotation runbook.
+3. Add baseline Grafana dashboards for request/policy/cost telemetry.

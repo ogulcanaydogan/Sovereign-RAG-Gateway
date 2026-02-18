@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+- Added Helm chart under `charts/sovereign-rag-gateway` with values schema, readiness/liveness probes, service account, optional RBAC, and default network policy.
+- Added kind deployment scripts and smoke runbook under `deploy/kind` and `docs/operations/helm-kind-runbook.md`.
+- Added `deploy-smoke` GitHub Actions workflow to validate chart installation and endpoint smoke tests on kind.
+- Added release workflow with semver tag validation, changelog-backed release notes, GHCR image publish, cosign signing, SBOM generation, and provenance attestation.
+- Added `scripts/extract_release_notes.py` and unit coverage for release-note extraction.
+
 ## v0.2.0-rc1 - 2026-02-18
 - Added `postgres` pgvector connector with connector registry wiring and policy-aware retrieval gating.
 - Extended ingestion tooling to support pgvector-backed indexing (`--connector postgres`).

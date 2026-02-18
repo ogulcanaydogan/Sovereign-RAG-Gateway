@@ -1,0 +1,16 @@
+Sovereign RAG Gateway installed.
+
+Service name:
+  {{ include "srg.fullname" . }}
+
+Port-forward command:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "srg.fullname" . }} 18080:{{ .Values.service.port }}
+
+Smoke checks:
+  curl -sf http://127.0.0.1:18080/healthz
+  curl -sf http://127.0.0.1:18080/readyz
+  curl -sf http://127.0.0.1:18080/v1/models \
+    -H 'Authorization: Bearer {{ index .Values.env.apiKeys 0 }}' \
+    -H 'x-srg-tenant-id: tenant-a' \
+    -H 'x-srg-user-id: user-1' \
+    -H 'x-srg-classification: public'
