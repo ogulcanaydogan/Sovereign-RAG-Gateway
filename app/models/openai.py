@@ -20,6 +20,7 @@ class ChatCompletionRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
     temperature: float | None = Field(default=0.2, ge=0, le=2)
     max_tokens: int | None = Field(default=256, ge=1, le=8192)
+    stream: bool = False
     rag: RagOptions | None = None
 
 
