@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     rag_postgres_dsn: str | None = None
     rag_postgres_table: str = "rag_chunks"
     rag_embedding_dim: int = 16
+    rag_embedding_source: str = "hash"
+    rag_embedding_endpoint: str | None = None
+    rag_embedding_model: str = "text-embedding-3-small"
+    rag_embedding_api_key: str | None = None
+    rag_embedding_tenant_id: str | None = None
+    rag_embedding_user_id: str | None = None
+    rag_embedding_classification: str | None = None
     opa_timeout_ms: int = 150
     opa_mode: str = "enforce"
     opa_url: str | None = None

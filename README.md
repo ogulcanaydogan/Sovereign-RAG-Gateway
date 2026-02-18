@@ -70,6 +70,21 @@ python3 scripts/rag_ingest.py \
   --postgres-table rag_chunks
 ```
 
+```bash
+python3 scripts/rag_ingest.py \
+  --connector postgres \
+  --input-dir benchmarks/data/synthetic_corpus \
+  --postgres-dsn postgresql://postgres:postgres@localhost:5432/srg_test \
+  --postgres-table rag_chunks \
+  --embedding-source http \
+  --embedding-endpoint http://127.0.0.1:8000/v1/embeddings \
+  --embedding-model text-embedding-3-small \
+  --embedding-api-key dev-key \
+  --embedding-tenant-id tenant-a \
+  --embedding-user-id ingest-bot \
+  --embedding-classification phi
+```
+
 ## Citation Eval Gate
 ```bash
 python3 scripts/eval_citations.py \
@@ -77,6 +92,22 @@ python3 scripts/eval_citations.py \
   --output-json artifacts/benchmarks/citation_eval.json \
   --output-markdown docs/benchmarks/reports/citations-latest.md \
   --threshold 0.95
+```
+
+## PGVector Ranking Eval Gate
+```bash
+python3 scripts/eval_pgvector_ranking.py \
+  --dataset benchmarks/data/pgvector_ranking_eval.jsonl \
+  --postgres-dsn postgresql://postgres:postgres@localhost:5432/srg_test \
+  --postgres-table rag_chunks \
+  --output-json artifacts/benchmarks/pgvector_ranking_eval.json \
+  --output-markdown docs/benchmarks/reports/pgvector-ranking-latest.md \
+  --threshold 0.8
+```
+
+## Migration Check (v0.2.0-rc1)
+```bash
+python3 scripts/check_migration_v020rc1.py
 ```
 
 ## Compose Smoke
@@ -101,6 +132,6 @@ python3 scripts/eval_citations.py \
 - Wedge: policy + redaction + audit chain + constrained RAG in one deployable control plane.
 
 ## Immediate Next Steps
-1. Add pgvector retrieval ranking quality tests against larger synthetic corpora.
-2. Implement provider-backed embedding generation for ingestion pipelines.
-3. Add `v0.2.0-rc1` release notes and migration checks.
+1. Add Helm chart and kind deploy smoke workflow for week-7 packaging.
+2. Add OTel collector + Prometheus baseline dashboards in demo deployment.
+3. Wire release pipeline for signed artifacts and SBOM automation.

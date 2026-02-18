@@ -15,3 +15,5 @@ def test_postgres_settings_defaults() -> None:
     settings = Settings()
     assert settings.rag_postgres_table == "rag_chunks"
     assert settings.rag_embedding_dim == 16
+    assert settings.rag_embedding_source == "hash"
+    assert settings.rag_embedding_model == "text-embedding-3-small"

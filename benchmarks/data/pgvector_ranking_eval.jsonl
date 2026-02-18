@@ -1,0 +1,3 @@
+{"id":"triage-note","query":"chest discomfort shortness breath triage ecg troponin cardiology follow-up", "expected_file_name":"triage-note-01.txt", "filters":{"extension":"txt"}}
+{"id":"discharge-summary","query":"discharge diagnosis viral respiratory infection hydration acetaminophen return precautions", "expected_file_name":"discharge-summary-02.txt", "filters":{"extension":"txt"}}
+{"id":"guardrail-policy","query":"clinical assistant guardrails reveal patient identifiers evidence-backed rationale", "expected_file_name":"policy-guardrail-03.md", "filters":{"extension":"md"}}
