@@ -1,3 +1,4 @@
+import json as json_mod
 import logging
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -211,6 +212,12 @@ class ChatService:
                 provider_attempts=provider_attempts,
             )
         return response
+
+    async def handle_chat_stream(
+        self, request: Request, payload: ChatCompletionRequest
+    ) -> list[str]:
+        response = await self.handle_chat(request, payload)
+        return self._build_stream_frames(response)
 
     async def handle_embeddings(
         self, request: Request, payload: EmbeddingsRequest
@@ -489,3 +496,106 @@ class ChatService:
             )
             for chunk in chunks
         ]
+
+    @staticmethod
+    def _build_stream_frames(response: ChatCompletionResponse) -> list[str]:
+        if not response.choices:
+            return ["data: [DONE]\n\n"]
+
+        message = response.choices[0].message
+        content_chunks = ChatService._split_content(message.content)
+
+        frames: list[str] = []
+        first_delta: dict[str, object] = {"role": "assistant"}
+        if content_chunks:
+            first_delta["content"] = content_chunks[0]
+
+        frames.append(
+            ChatService._sse_event(
+                {
+                    "id": response.id,
+                    "object": "chat.completion.chunk",
+                    "created": response.created,
+                    "model": response.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": first_delta,
+                            "finish_reason": None,
+                        }
+                    ],
+                }
+            )
+        )
+
+        for chunk in content_chunks[1:]:
+            frames.append(
+                ChatService._sse_event(
+                    {
+                        "id": response.id,
+                        "object": "chat.completion.chunk",
+                        "created": response.created,
+                        "model": response.model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"content": chunk},
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                )
+            )
+
+        if message.citations:
+            frames.append(
+                ChatService._sse_event(
+                    {
+                        "id": response.id,
+                        "object": "chat.completion.chunk",
+                        "created": response.created,
+                        "model": response.model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {
+                                    "citations": [
+                                        citation.model_dump() for citation in message.citations
+                                    ]
+                                },
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                )
+            )
+
+        frames.append(
+            ChatService._sse_event(
+                {
+                    "id": response.id,
+                    "object": "chat.completion.chunk",
+                    "created": response.created,
+                    "model": response.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                }
+            )
+        )
+        frames.append("data: [DONE]\n\n")
+        return frames
+
+    @staticmethod
+    def _sse_event(payload: dict[str, object]) -> str:
+        return f"data: {json_mod.dumps(payload, separators=(',', ':'))}\n\n"
+
+    @staticmethod
+    def _split_content(content: str, chunk_size: int = 80) -> list[str]:
+        if not content:
+            return []
+        return [content[index : index + chunk_size] for index in range(0, len(content), chunk_size)]

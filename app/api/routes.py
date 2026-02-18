@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 
 from app.metrics import metrics_router
 from app.models.openai import (
@@ -39,8 +40,19 @@ def list_models(request: Request) -> dict[str, object]:
 )
 async def chat_completions(
     request: Request, payload: ChatCompletionRequest
-) -> ChatCompletionResponse:
+) -> ChatCompletionResponse | StreamingResponse:
     service: ChatService = request.app.state.chat_service
+    if payload.stream:
+        frames = await service.handle_chat_stream(request, payload)
+        return StreamingResponse(
+            iter(frames),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
     return await service.handle_chat(request, payload)
 
 
