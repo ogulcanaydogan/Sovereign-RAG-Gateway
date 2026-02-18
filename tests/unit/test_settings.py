@@ -9,3 +9,9 @@ def test_api_key_set_parses_values() -> None:
 def test_rag_allowed_connector_set_parses_values() -> None:
     settings = Settings(rag_allowed_connectors="filesystem, postgres, s3")
     assert settings.rag_allowed_connector_set == {"filesystem", "postgres", "s3"}
+
+
+def test_postgres_settings_defaults() -> None:
+    settings = Settings()
+    assert settings.rag_postgres_table == "rag_chunks"
+    assert settings.rag_embedding_dim == 16

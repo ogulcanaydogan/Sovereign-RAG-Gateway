@@ -1,0 +1,6 @@
+{"id":"c1","question":"Summarize triage guardrails","connector":"filesystem"}
+{"id":"c2","question":"What does discharge summary recommend?","connector":"filesystem"}
+{"id":"c3","question":"List clinical assistant guardrails","connector":"filesystem"}
+{"id":"c4","question":"What follow-up is suggested for chest discomfort?","connector":"filesystem"}
+{"id":"c5","question":"What home care plan is in the discharge note?","connector":"filesystem"}
+{"id":"c6","question":"Provide evidence-backed triage policy notes","connector":"filesystem"}

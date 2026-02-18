@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.0-rc1 - 2026-02-18
+- Added `postgres` pgvector connector with connector registry wiring and policy-aware retrieval gating.
+- Extended ingestion tooling to support pgvector-backed indexing (`--connector postgres`).
+- Added citation evaluation harness and CI gate enforcing citation presence threshold (`>=0.95`).
+- Added Postgres integration coverage for connector search/fetch and citation-bearing chat responses.
+- Updated benchmark/docs artifacts for week-6 RC readiness.
+
 ## v0.1.0-alpha.3 - 2026-02-17
 - Added connector-based RAG foundation with `app/rag` registry, connector protocol, and retrieval orchestrator.
 - Implemented filesystem connector search/fetch with metadata filtering and citation-ready chunk output.

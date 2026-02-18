@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     rag_default_top_k: int = 3
     rag_allowed_connectors: str = "filesystem"
     rag_filesystem_index_path: Path = Path("artifacts/rag/filesystem_index.jsonl")
+    rag_postgres_dsn: str | None = None
+    rag_postgres_table: str = "rag_chunks"
+    rag_embedding_dim: int = 16
     opa_timeout_ms: int = 150
     opa_mode: str = "enforce"
     opa_url: str | None = None
