@@ -35,10 +35,8 @@ helm upgrade --install "$RELEASE_NAME" "$ROOT_DIR/charts/sovereign-rag-gateway" 
   --set env.budgetDefaultCeiling=20 \
   --set env.budgetWindowSeconds=3600 \
   --set env.webhookEnabled=true \
-  --set-json env.webhookEndpoints="$WEBHOOK_ENDPOINTS" \
+  --set-string env.webhookEndpoints="$WEBHOOK_ENDPOINTS" \
   --set env.webhookMaxRetries=1 \
-  --set env.webhookBackoffBaseS=0.0 \
-  --set env.webhookBackoffMaxS=0.0 \
   --set env.tracingEnabled=true \
   --set env.tracingMaxTraces=200
 
