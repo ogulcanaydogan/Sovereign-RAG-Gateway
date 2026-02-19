@@ -39,7 +39,7 @@ helm upgrade --install "$RELEASE_NAME" "$ROOT_DIR/charts/sovereign-rag-gateway" 
   --set image.pullPolicy=IfNotPresent \
   --set env.apiKeys[0]=test-key \
   --set env.budgetEnabled=true \
-  --set env.budgetDefaultCeiling=20 \
+  --set env.budgetDefaultCeiling=200 \
   --set env.budgetWindowSeconds=3600 \
   --set env.webhookEnabled=true \
   --set env.webhookMaxRetries=1 \
