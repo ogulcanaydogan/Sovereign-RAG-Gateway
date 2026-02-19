@@ -50,6 +50,20 @@ def main() -> None:
         "tokens_out": 10,
         "cost_usd": 0.00002,
         "policy_hash": "abc",
+        "trace_id": "req-1",
+        "budget": {
+            "tenant_id": "t1",
+            "ceiling": 1000,
+            "used": 50,
+            "remaining": 950,
+            "window_seconds": 3600,
+            "utilization_pct": 5.0,
+        },
+        "webhook_events": [
+            {"event_type": "redaction_hit", "delivery_success_count": 1}
+        ],
+        "input_redaction_count": 0,
+        "output_redaction_count": 0,
         "payload_hash": "h1",
         "prev_hash": "",
         "created_at": "2026-02-17T00:00:00Z",

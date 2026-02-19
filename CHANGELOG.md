@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.4.0-rc1 - 2026-02-19
+
+### Runtime Governance Controls
+- Added response redaction in chat and streaming paths with separate `input_redaction_count` and `output_redaction_count` tracking.
+- Added per-tenant sliding-window budget enforcement in request path with deterministic `429 budget_exceeded` responses.
+- Added budget-aware audit fields and deny-path audit emission for over-budget requests.
+- Added non-blocking webhook event dispatch hooks for policy deny, budget exceed, provider fallback/error, and redaction hits.
+- Added in-memory trace collection wiring across request lifecycle spans:
+  - `gateway.request`
+  - `policy.evaluate`
+  - `redaction.scan`
+  - `rag.retrieve`
+  - `provider.call`
+  - `audit.persist`
+
+### API and Contract Updates
+- Added trace diagnostics endpoint: `GET /v1/traces/{request_id}`.
+- Extended audit event schema with optional runtime observability/governance fields:
+  - `trace_id`
+  - `budget`
+  - `webhook_events`
+  - `input_redaction_count`
+  - `output_redaction_count`
+
+### Testing
+- Added new unit tests:
+  - `test_budget_tracker.py`
+  - `test_webhook_dispatcher.py`
+  - `test_span_collector.py`
+- Added integration runtime controls coverage:
+  - budget deny and usage accounting
+  - response redaction verification
+  - webhook trigger smoke
+  - trace endpoint span chain checks
+
+### Infrastructure and CI
+- Added Terraform module documentation at `deploy/terraform/README.md`.
+- Added `terraform-validate` GitHub Actions workflow (`terraform fmt -check`, `terraform validate`).
+- Synced version defaults across app/chart/terraform release variables to `0.4.0-rc1`.
+
 ## v0.3.0 - 2026-02-18
 
 ### Streaming and Provider Adapters

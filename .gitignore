@@ -11,3 +11,7 @@ artifacts/
 *.log
 .DS_Store
 *.egg-info/
+deploy/terraform/.terraform/
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.backup
+deploy/terraform/tfplan

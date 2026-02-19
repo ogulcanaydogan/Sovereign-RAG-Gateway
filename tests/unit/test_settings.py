@@ -30,3 +30,36 @@ def test_confluence_spaces_parses_values() -> None:
 def test_jira_project_keys_parses_values() -> None:
     settings = Settings(rag_jira_project_keys="OPS, ENG,SEC")
     assert settings.rag_jira_project_key_set == {"OPS", "ENG", "SEC"}
+
+
+def test_budget_tenant_ceiling_map_parses_values() -> None:
+    settings = Settings(budget_tenant_ceilings="tenant-a:1000, tenant-b:2500,invalid")
+    assert settings.budget_tenant_ceiling_map == {
+        "tenant-a": 1000,
+        "tenant-b": 2500,
+    }
+
+
+def test_budget_tenant_ceiling_map_ignores_non_positive_values() -> None:
+    settings = Settings(
+        budget_tenant_ceilings="tenant-a:0, tenant-b:-10, tenant-c:500, :100, tenant-d:notanint"
+    )
+    assert settings.budget_tenant_ceiling_map == {"tenant-c": 500}
+
+
+def test_budget_backend_normalized() -> None:
+    settings = Settings(budget_backend=" Redis ")
+    assert settings.budget_backend_normalized == "redis"
+
+
+def test_tracing_otlp_header_map_parses_json_and_csv() -> None:
+    json_settings = Settings(
+        tracing_otlp_headers='{"Authorization":"Bearer x","x-tenant":"tenant-a"}'
+    )
+    assert json_settings.tracing_otlp_header_map["Authorization"] == "Bearer x"
+
+    csv_settings = Settings(tracing_otlp_headers="Authorization:Bearer x,x-tenant:tenant-a")
+    assert csv_settings.tracing_otlp_header_map == {
+        "Authorization": "Bearer x",
+        "x-tenant": "tenant-a",
+    }

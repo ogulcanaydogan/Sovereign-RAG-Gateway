@@ -1,3 +1,4 @@
+import json as json_mod
 from functools import lru_cache
 from pathlib import Path
 
@@ -53,6 +54,34 @@ class Settings(BaseSettings):
     audit_log_path: Path = Path("artifacts/audit/events.jsonl")
     contracts_dir: Path = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "v1"
 
+    # Budget enforcement
+    budget_enabled: bool = False
+    budget_default_ceiling: int = 100_000
+    budget_window_seconds: int = 3600
+    budget_tenant_ceilings: str = ""
+    budget_backend: str = "memory"
+    budget_redis_url: str | None = None
+    budget_redis_prefix: str = "srg:budget"
+    budget_redis_ttl_seconds: int = 7200
+
+    # Webhook notifications
+    webhook_enabled: bool = False
+    webhook_endpoints: str = ""
+    webhook_timeout_s: float = 5.0
+    webhook_max_retries: int = 1
+    webhook_backoff_base_s: float = 0.2
+    webhook_backoff_max_s: float = 2.0
+    webhook_dead_letter_path: Path | None = Path("artifacts/audit/webhook_dead_letter.jsonl")
+
+    # Telemetry / tracing
+    tracing_enabled: bool = False
+    tracing_max_traces: int = 1000
+    tracing_otlp_enabled: bool = False
+    tracing_otlp_endpoint: str | None = None
+    tracing_otlp_timeout_s: float = 2.0
+    tracing_otlp_headers: str = ""
+    tracing_service_name: str = "sovereign-rag-gateway"
+
     @property
     def api_key_set(self) -> set[str]:
         return {item.strip() for item in self.api_keys.split(",") if item.strip()}
@@ -72,6 +101,58 @@ class Settings(BaseSettings):
     @property
     def rag_jira_project_key_set(self) -> set[str]:
         return {item.strip() for item in self.rag_jira_project_keys.split(",") if item.strip()}
+
+    @property
+    def budget_tenant_ceiling_map(self) -> dict[str, int]:
+        """Parse ``tenant:ceiling,tenant:ceiling`` into a dict."""
+        result: dict[str, int] = {}
+        for item in self.budget_tenant_ceilings.split(","):
+            item = item.strip()
+            if ":" not in item:
+                continue
+            tenant, ceiling_str = item.split(":", 1)
+            try:
+                normalized_tenant = tenant.strip()
+                normalized_ceiling = int(ceiling_str.strip())
+                if not normalized_tenant or normalized_ceiling <= 0:
+                    continue
+                result[normalized_tenant] = normalized_ceiling
+            except ValueError:
+                continue
+        return result
+
+    @property
+    def budget_backend_normalized(self) -> str:
+        return self.budget_backend.strip().lower()
+
+    @property
+    def tracing_otlp_header_map(self) -> dict[str, str]:
+        raw = self.tracing_otlp_headers.strip()
+        if not raw:
+            return {}
+        if raw.startswith("{"):
+            try:
+                parsed = json_mod.loads(raw)
+            except json_mod.JSONDecodeError:
+                return {}
+            if not isinstance(parsed, dict):
+                return {}
+            return {
+                str(key).strip(): str(value).strip()
+                for key, value in parsed.items()
+                if str(key).strip()
+            }
+        result: dict[str, str] = {}
+        for item in raw.split(","):
+            item = item.strip()
+            if ":" not in item:
+                continue
+            key, value = item.split(":", 1)
+            key = key.strip()
+            if not key:
+                continue
+            result[key] = value.strip()
+        return result
 
 
 @lru_cache

@@ -11,6 +11,7 @@ Compared with direct provider calls, in-path governance (`policy + redaction + p
 2. Observe mode: gateway decisions logged, not enforced.
 3. Enforce mode: policy + redaction.
 4. Enforce + RAG mode: policy + redaction + connector-scoped retrieval/citations.
+5. Fault-injection mode: policy outage, provider 429 storm, retrieval timeout.
 
 ## Datasets and Workloads
 ### Datasets
@@ -30,6 +31,10 @@ Compared with direct provider calls, in-path governance (`policy + redaction + p
 - Citation integrity rate (citations reference only allowed sources).
 - Latency overhead deltas p50/p95/p99 versus baseline.
 - Cost drift versus configured budget cap.
+- Fault attribution accuracy (expected fault domain vs detected).
+- Detection delay p95 (fault injection timestamp to surfaced signal).
+- SLO burn prediction error percentage.
+- False-positive incident rate during healthy runs.
 
 ## Success Thresholds (Initial v0.2 Target)
 - Leakage rate < 0.5% on synthetic suite.

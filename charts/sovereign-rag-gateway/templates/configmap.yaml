@@ -17,3 +17,25 @@ data:
   SRG_AUDIT_LOG_PATH: {{ .Values.env.auditLogPath | quote }}
   SRG_METRICS_ENABLED: {{ .Values.env.metricsEnabled | quote }}
   SRG_PROVIDER_FALLBACK_ENABLED: {{ .Values.env.providerFallbackEnabled | quote }}
+  SRG_BUDGET_ENABLED: {{ .Values.env.budgetEnabled | quote }}
+  SRG_BUDGET_DEFAULT_CEILING: {{ .Values.env.budgetDefaultCeiling | quote }}
+  SRG_BUDGET_WINDOW_SECONDS: {{ .Values.env.budgetWindowSeconds | quote }}
+  SRG_BUDGET_TENANT_CEILINGS: {{ .Values.env.budgetTenantCeilings | quote }}
+  SRG_BUDGET_BACKEND: {{ .Values.env.budgetBackend | quote }}
+  SRG_BUDGET_REDIS_URL: {{ .Values.env.budgetRedisUrl | quote }}
+  SRG_BUDGET_REDIS_PREFIX: {{ .Values.env.budgetRedisPrefix | quote }}
+  SRG_BUDGET_REDIS_TTL_SECONDS: {{ .Values.env.budgetRedisTtlSeconds | quote }}
+  SRG_WEBHOOK_ENABLED: {{ .Values.env.webhookEnabled | quote }}
+  SRG_WEBHOOK_ENDPOINTS: {{ .Values.env.webhookEndpoints | quote }}
+  SRG_WEBHOOK_TIMEOUT_S: {{ .Values.env.webhookTimeoutS | quote }}
+  SRG_WEBHOOK_MAX_RETRIES: {{ .Values.env.webhookMaxRetries | quote }}
+  SRG_WEBHOOK_BACKOFF_BASE_S: {{ .Values.env.webhookBackoffBaseS | quote }}
+  SRG_WEBHOOK_BACKOFF_MAX_S: {{ .Values.env.webhookBackoffMaxS | quote }}
+  SRG_WEBHOOK_DEAD_LETTER_PATH: {{ .Values.env.webhookDeadLetterPath | quote }}
+  SRG_TRACING_ENABLED: {{ .Values.env.tracingEnabled | quote }}
+  SRG_TRACING_MAX_TRACES: {{ .Values.env.tracingMaxTraces | quote }}
+  SRG_TRACING_OTLP_ENABLED: {{ .Values.env.tracingOtlpEnabled | quote }}
+  SRG_TRACING_OTLP_ENDPOINT: {{ .Values.env.tracingOtlpEndpoint | quote }}
+  SRG_TRACING_OTLP_TIMEOUT_S: {{ .Values.env.tracingOtlpTimeoutS | quote }}
+  SRG_TRACING_OTLP_HEADERS: {{ .Values.env.tracingOtlpHeaders | quote }}
+  SRG_TRACING_SERVICE_NAME: {{ .Values.env.tracingServiceName | quote }}

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import router
 from app.audit.writer import AuditWriter
+from app.budget.tracker import RedisTokenBudgetTracker, TokenBudgetTracker
 from app.config.settings import Settings, get_settings
 from app.core.errors import AppError, app_error_response, request_id_from_request
 from app.core.logging import configure_logging
@@ -32,6 +33,8 @@ from app.rag.registry import ConnectorRegistry
 from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
 from app.services.chat_service import ChatService
+from app.telemetry.tracing import OTLPHTTPTraceExporter, SpanCollector
+from app.webhooks.dispatcher import WebhookDispatcher, WebhookEndpoint, WebhookEventType
 
 
 def _build_rag_embedding_generator(settings: Settings, embedding_dim: int) -> EmbeddingGenerator:
@@ -157,11 +160,82 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
     return registry
 
 
+def _build_budget_tracker(
+    settings: Settings,
+) -> TokenBudgetTracker | RedisTokenBudgetTracker | None:
+    if not settings.budget_enabled:
+        return None
+    backend = settings.budget_backend_normalized
+    if backend == "memory":
+        return TokenBudgetTracker(
+            default_ceiling=settings.budget_default_ceiling,
+            window_seconds=settings.budget_window_seconds,
+            tenant_ceilings=settings.budget_tenant_ceiling_map or None,
+        )
+    if backend == "redis":
+        if not settings.budget_redis_url:
+            raise RuntimeError("SRG_BUDGET_REDIS_URL is required when SRG_BUDGET_BACKEND=redis")
+        return RedisTokenBudgetTracker(
+            redis_url=settings.budget_redis_url,
+            default_ceiling=settings.budget_default_ceiling,
+            window_seconds=settings.budget_window_seconds,
+            tenant_ceilings=settings.budget_tenant_ceiling_map or None,
+            key_prefix=settings.budget_redis_prefix,
+            ttl_seconds=settings.budget_redis_ttl_seconds,
+        )
+    raise RuntimeError(f"Unsupported SRG_BUDGET_BACKEND value: {backend}")
+
+
+def _build_webhook_dispatcher(settings: Settings) -> WebhookDispatcher | None:
+    if not settings.webhook_enabled:
+        return None
+    endpoints: list[WebhookEndpoint] = []
+    if settings.webhook_endpoints:
+        for raw in json_mod.loads(settings.webhook_endpoints):
+            event_types = frozenset(
+                WebhookEventType(et) for et in raw.get("event_types", [])
+            ) or frozenset(WebhookEventType)
+            endpoints.append(
+                WebhookEndpoint(
+                    url=raw["url"],
+                    secret=raw.get("secret", ""),
+                    event_types=event_types,
+                    enabled=raw.get("enabled", True),
+                )
+            )
+    return WebhookDispatcher(
+        endpoints=endpoints,
+        timeout_s=settings.webhook_timeout_s,
+        max_retries=settings.webhook_max_retries,
+        backoff_base_s=settings.webhook_backoff_base_s,
+        backoff_max_s=settings.webhook_backoff_max_s,
+        dead_letter_path=settings.webhook_dead_letter_path,
+    )
+
+
+def _build_span_collector(settings: Settings) -> SpanCollector | None:
+    if not settings.tracing_enabled:
+        return None
+    exporter = None
+    if settings.tracing_otlp_enabled:
+        if not settings.tracing_otlp_endpoint:
+            raise RuntimeError(
+                "SRG_TRACING_OTLP_ENDPOINT is required when SRG_TRACING_OTLP_ENABLED=true"
+            )
+        exporter = OTLPHTTPTraceExporter(
+            endpoint=settings.tracing_otlp_endpoint,
+            timeout_s=settings.tracing_otlp_timeout_s,
+            headers=settings.tracing_otlp_header_map,
+            service_name=settings.tracing_service_name,
+        )
+    return SpanCollector(max_traces=settings.tracing_max_traces, exporter=exporter)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.3.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.4.0-rc1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -230,6 +304,10 @@ def create_app() -> FastAPI:
         else StubProvider(embedding_dim=settings.rag_embedding_dim)
     )
 
+    budget_tracker = _build_budget_tracker(settings)
+    webhook_dispatcher = _build_webhook_dispatcher(settings)
+    span_collector = _build_span_collector(settings)
+
     chat_service = ChatService(
         settings=settings,
         policy_client=OPAClient(settings),
@@ -241,6 +319,9 @@ def create_app() -> FastAPI:
             default_k=settings.rag_default_top_k,
         ),
         provider_registry=provider_registry,
+        budget_tracker=budget_tracker,
+        webhook_dispatcher=webhook_dispatcher,
+        span_collector=span_collector,
     )
     app.state.chat_service = chat_service
 

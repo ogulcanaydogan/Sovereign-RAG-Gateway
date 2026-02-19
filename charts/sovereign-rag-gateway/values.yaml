@@ -69,6 +69,28 @@ env:
   auditLogPath: /tmp/audit/events.jsonl
   metricsEnabled: true
   providerFallbackEnabled: true
+  budgetEnabled: false
+  budgetDefaultCeiling: 100000
+  budgetWindowSeconds: 3600
+  budgetTenantCeilings: ""
+  budgetBackend: memory
+  budgetRedisUrl: ""
+  budgetRedisPrefix: srg:budget
+  budgetRedisTtlSeconds: 7200
+  webhookEnabled: false
+  webhookEndpoints: "[]"
+  webhookTimeoutS: 5.0
+  webhookMaxRetries: 1
+  webhookBackoffBaseS: 0.2
+  webhookBackoffMaxS: 2.0
+  webhookDeadLetterPath: /tmp/audit/webhook_dead_letter.jsonl
+  tracingEnabled: false
+  tracingMaxTraces: 1000
+  tracingOtlpEnabled: false
+  tracingOtlpEndpoint: ""
+  tracingOtlpTimeoutS: 2.0
+  tracingOtlpHeaders: ""
+  tracingServiceName: sovereign-rag-gateway
 
 probes:
   liveness:
