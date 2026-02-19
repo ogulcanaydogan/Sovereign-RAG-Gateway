@@ -631,9 +631,9 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Metric | Value |
 |---|---|
 | Application code | ~4,970 lines across 44 modules |
-| Test code | ~2,550 lines across 42 test files |
-| Test-to-code ratio | 51% |
-| Test functions | 101 (unit, integration, contract, benchmark) |
+| Test code | ~3,090 lines across 46 test files |
+| Test-to-code ratio | 59% |
+| Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
 | Current version | 0.3.0 |
@@ -735,7 +735,8 @@ python scripts/audit_replay_bundle.py \
 | [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Current release notes |
+| [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Current release notes (v0.3.0) |
+| [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Previous release notes (v0.2.0) |
 
 ## Honest Gap Assessment
 
@@ -760,6 +761,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Confluence read-only connector
 - [x] Jira read-only connector
 - [x] Signed evidence bundle output (detached signature + verification)
+
+### Next (v0.4.0)
+- [ ] Response redaction — scan LLM output for PHI/PII before returning to clients
+- [ ] Token budget enforcement — per-tenant sliding window quotas with policy integration
+- [ ] OpenTelemetry distributed tracing across gateway → OPA → providers
+- [ ] Webhook notifications on policy denials, redaction triggers, and cost threshold breaches
+- [ ] Terraform/Pulumi IaC module for production AWS deployment (EKS + RDS + S3)
 
 ## Licence
 
