@@ -23,10 +23,17 @@ docker build -t "$LOCAL_IMAGE" .
 kind load docker-image --name "$CLUSTER_NAME" "$LOCAL_IMAGE"
 
 WEBHOOK_ENDPOINTS='[{"url":"http://127.0.0.1:1/unreachable","secret":"local-smoke","event_types":["policy_denied","budget_exceeded","redaction_hit","provider_fallback","provider_error"]}]'
+VALUES_FILE="$(mktemp)"
+cat >"$VALUES_FILE" <<EOF
+env:
+  webhookEndpoints: '$WEBHOOK_ENDPOINTS'
+EOF
+trap 'rm -f "$VALUES_FILE"' EXIT
 
 helm upgrade --install "$RELEASE_NAME" "$ROOT_DIR/charts/sovereign-rag-gateway" \
   --namespace "$NAMESPACE" \
   --create-namespace \
+  -f "$VALUES_FILE" \
   --set image.repository="${LOCAL_IMAGE%:*}" \
   --set image.tag="${LOCAL_IMAGE##*:}" \
   --set image.pullPolicy=IfNotPresent \
@@ -35,7 +42,6 @@ helm upgrade --install "$RELEASE_NAME" "$ROOT_DIR/charts/sovereign-rag-gateway" 
   --set env.budgetDefaultCeiling=20 \
   --set env.budgetWindowSeconds=3600 \
   --set env.webhookEnabled=true \
-  --set-string env.webhookEndpoints="$WEBHOOK_ENDPOINTS" \
   --set env.webhookMaxRetries=1 \
   --set env.tracingEnabled=true \
   --set env.tracingMaxTraces=200
@@ -47,7 +53,7 @@ POD_NAME="$(kubectl -n "$NAMESPACE" get pod -l app.kubernetes.io/instance="$RELE
 
 kubectl -n "$NAMESPACE" port-forward svc/"$RELEASE_NAME"-sovereign-rag-gateway 18080:80 >/tmp/srg-port-forward.log 2>&1 &
 PF_PID=$!
-trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
+trap 'kill $PF_PID >/dev/null 2>&1 || true; rm -f "$VALUES_FILE"' EXIT
 sleep 6
 
 curl -sf http://127.0.0.1:18080/healthz >/dev/null
