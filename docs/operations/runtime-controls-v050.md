@@ -54,6 +54,16 @@ Behavior:
 - Requests include `X-SRG-Idempotency-Key`.
 - Failed events are written to dead-letter JSONL for replay.
 
+Replay example:
+
+```bash
+python scripts/replay_webhook_dead_letter.py \
+  --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+  --event-types policy_denied,budget_exceeded \
+  --max-events 50 \
+  --report-out artifacts/audit/webhook_replay_report.json
+```
+
 ## 4) Fault-Injection Benchmark Scenarios
 
 `scripts/benchmark_runner.py` now supports:
@@ -66,3 +76,30 @@ New summary metrics:
 - `detection_delay_ms_p95`
 - `slo_burn_prediction_error_pct`
 - `false_positive_incident_rate`
+
+## 5) Benchmark Trend Regression Gate
+
+Compare current governance benchmark output against a checked-in baseline:
+
+```bash
+python scripts/check_benchmark_trend.py \
+  --current artifacts/benchmarks/governance/results_summary.json \
+  --baseline benchmarks/baselines/governance_enforce_redact_summary.json \
+  --max-latency-regression-pct 20 \
+  --max-leakage-regression-abs 0.002 \
+  --max-abs-cost-drift-regression-pct 3 \
+  --max-citation-drop-abs 0.1
+```
+
+## 6) Kind Runtime Controls Smoke
+
+Run runtime controls (budget, tracing, webhook dead-letter) against local kind:
+
+```bash
+deploy/kind/runtime-controls-smoke.sh
+```
+
+The smoke script validates:
+- request-level tracing availability (`/v1/traces/{request_id}`)
+- deterministic `429 budget_exceeded` path
+- webhook dead-letter write on delivery failure

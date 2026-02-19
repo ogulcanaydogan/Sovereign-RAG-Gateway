@@ -24,6 +24,7 @@ from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.jira import JiraConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
+from app.rag.connectors.sharepoint import SharePointConnector
 from app.rag.embeddings import (
     EmbeddingGenerator,
     HashEmbeddingGenerator,
@@ -235,7 +236,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.4.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.5.0-alpha.1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -293,6 +294,18 @@ def create_app() -> FastAPI:
                 api_token=settings.rag_jira_api_token,
                 project_keys=settings.rag_jira_project_key_set,
                 cache_ttl_seconds=settings.rag_jira_cache_ttl_seconds,
+            ),
+        )
+    if settings.rag_sharepoint_site_id and settings.rag_sharepoint_bearer_token:
+        connector_registry.register(
+            "sharepoint",
+            SharePointConnector(
+                site_id=settings.rag_sharepoint_site_id,
+                bearer_token=settings.rag_sharepoint_bearer_token,
+                base_url=settings.rag_sharepoint_base_url,
+                drive_id=settings.rag_sharepoint_drive_id,
+                allowed_path_prefixes=settings.rag_sharepoint_allowed_path_prefix_set,
+                cache_ttl_seconds=settings.rag_sharepoint_cache_ttl_seconds,
             ),
         )
 

@@ -58,6 +58,14 @@ jobs:
             -H 'x-srg-user-id: user-1' \
             -H 'x-srg-classification: public' >/dev/null
 
+      - name: Runtime controls smoke tests
+        run: |
+          CLUSTER_NAME=srg-ci \
+          NAMESPACE=srg-system \
+          RELEASE_NAME=srg \
+          LOCAL_IMAGE=srg-gateway:ci \
+          ./deploy/kind/runtime-controls-smoke.sh
+
       - name: Dump diagnostics on failure
         if: failure()
         run: |

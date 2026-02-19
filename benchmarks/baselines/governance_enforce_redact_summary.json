@@ -1,0 +1,12 @@
+{
+  "run_id": "baseline-2026-02-19T00-00-00Z",
+  "project": "sovereign-rag-gateway",
+  "scenario": "enforce_redact",
+  "dataset_version": "v1",
+  "metrics": {
+    "latency_ms_p95": 145.0,
+    "leakage_rate": 0.004,
+    "cost_drift_pct": 0.0,
+    "citation_presence_rate": 1.0
+  }
+}

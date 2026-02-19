@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.5.0-alpha.1 - 2026-02-19
+
+### Enterprise Retrieval
+- Added SharePoint read-only connector via Microsoft Graph (`search` + `fetch`) with:
+  - optional drive scoping
+  - allowed path prefix controls
+  - lexical ranking and top-k retrieval
+- Wired connector registration and settings for:
+  - `SRG_RAG_SHAREPOINT_*`
+
+### Runtime Operations
+- Added webhook dead-letter replay CLI:
+  - `scripts/replay_webhook_dead_letter.py`
+  - supports event filters, endpoint override, deterministic idempotency key derivation, dry-run mode, and JSON reports
+
+### Benchmarks and CI
+- Added benchmark trend regression gate:
+  - `scripts/check_benchmark_trend.py`
+  - checked-in governance baseline under `benchmarks/baselines/`
+- CI now includes:
+  - Redis service for runtime-control integration coverage
+  - webhook dead-letter replay smoke step
+  - governance trend regression check
+
+### Tests
+- Added unit tests:
+  - `tests/unit/test_sharepoint_connector.py`
+  - `tests/unit/test_replay_webhook_dead_letter.py`
+  - `tests/benchmarks/test_benchmark_trend.py`
+- Added integration tests:
+  - `tests/integration/test_runtime_controls_v050.py` (Redis budget backend + live OTLP HTTP export)
+  - `tests/integration/test_chat_rag_sharepoint.py`
+
 ## v0.4.0 - 2026-02-19
 
 ### Runtime Governance Controls

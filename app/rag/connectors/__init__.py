@@ -5,6 +5,7 @@ from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.jira import JiraConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
+from app.rag.connectors.sharepoint import SharePointConnector
 
 __all__ = [
     "ConfluenceConnector",
@@ -12,4 +13,5 @@ __all__ = [
     "JiraConnector",
     "PostgresPgvectorConnector",
     "S3Connector",
+    "SharePointConnector",
 ]

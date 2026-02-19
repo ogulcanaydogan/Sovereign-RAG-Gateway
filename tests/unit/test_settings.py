@@ -32,6 +32,16 @@ def test_jira_project_keys_parses_values() -> None:
     assert settings.rag_jira_project_key_set == {"OPS", "ENG", "SEC"}
 
 
+def test_sharepoint_allowed_path_prefixes_parses_values() -> None:
+    settings = Settings(
+        rag_sharepoint_allowed_path_prefixes=" /drives/a/root:/Ops, /drives/a/root:/Sec "
+    )
+    assert settings.rag_sharepoint_allowed_path_prefix_set == {
+        "/drives/a/root:/Ops",
+        "/drives/a/root:/Sec",
+    }
+
+
 def test_budget_tenant_ceiling_map_parses_values() -> None:
     settings = Settings(budget_tenant_ceilings="tenant-a:1000, tenant-b:2500,invalid")
     assert settings.budget_tenant_ceiling_map == {

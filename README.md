@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.4.0 |
+| Current version | 0.5.0-alpha.1 |
 
 ### Quality and Contracts
 
@@ -719,6 +719,15 @@ python scripts/audit_replay_bundle.py \
   --include-chain-verify
 ```
 
+Replay failed webhook deliveries from dead-letter storage:
+```bash
+python scripts/replay_webhook_dead_letter.py \
+  --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+  --event-types policy_denied,budget_exceeded \
+  --max-events 50 \
+  --report-out artifacts/audit/webhook_replay_report.json
+```
+
 ### v0.4 Runtime Control Environment Flags
 
 ```bash
@@ -749,6 +758,13 @@ SRG_TRACING_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
 SRG_TRACING_OTLP_TIMEOUT_S=2.0
 SRG_TRACING_OTLP_HEADERS='{"Authorization":"Bearer replace_me"}'
 SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
+
+# SharePoint connector (optional)
+SRG_RAG_SHAREPOINT_BASE_URL=https://graph.microsoft.com/v1.0
+SRG_RAG_SHAREPOINT_SITE_ID=<site-id>
+SRG_RAG_SHAREPOINT_DRIVE_ID=<drive-id>
+SRG_RAG_SHAREPOINT_BEARER_TOKEN=<token>
+SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 ```
 
 ## Documentation
@@ -763,12 +779,14 @@ SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
 | [`docs/operations/helm-kind-runbook.md`](docs/operations/helm-kind-runbook.md) | Local Kubernetes deployment guide |
 | [`docs/operations/confluence-connector.md`](docs/operations/confluence-connector.md) | Confluence read-only connector setup |
 | [`docs/operations/jira-connector.md`](docs/operations/jira-connector.md) | Jira read-only connector setup |
+| [`docs/operations/sharepoint-connector.md`](docs/operations/sharepoint-connector.md) | SharePoint read-only connector setup |
 | [`docs/operations/compliance-control-mapping.md`](docs/operations/compliance-control-mapping.md) | Technical control-to-evidence mapping |
 | [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md) | Current release notes (v0.4.0) |
+| [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md) | Current stable release notes (v0.4.0) |
+| [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Current prerelease notes draft (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Previous release notes (v0.3.0) |
@@ -796,6 +814,7 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Evidence replay bundle export and schema
 - [x] Confluence read-only connector
 - [x] Jira read-only connector
+- [x] SharePoint read-only connector
 - [x] Signed evidence bundle output (detached signature + verification)
 
 ### Next (v0.4.0)
@@ -804,6 +823,16 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] OpenTelemetry distributed tracing across gateway → OPA → providers
 - [x] Webhook notifications on policy denials, redaction triggers, and cost threshold breaches
 - [x] Terraform/Pulumi IaC module for production AWS deployment (EKS + RDS + S3)
+
+### Next (v0.5.0 Foundation)
+- [x] Redis-backed distributed budget tracking for multi-replica deployments
+- [x] OTLP HTTP trace exporter with configurable endpoint, timeout, and headers
+- [x] Webhook retry/backoff/idempotency + dead-letter queue output
+- [x] Dead-letter replay CLI with deterministic summary/report output
+- [x] Benchmark trend regression gate (current vs checked-in baseline)
+- [x] SharePoint read-only connector (Graph API, policy-scoped retrieval)
+- [ ] Promote v0.5.0-alpha.1 release notes and tagged prerelease
+- [ ] Validate runtime-controls stack in kind smoke environment and publish weekly report
 
 ## Licence
 
