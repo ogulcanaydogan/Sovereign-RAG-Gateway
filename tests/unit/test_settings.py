@@ -20,3 +20,13 @@ def test_postgres_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.rag_embedding_dim == 16
     assert settings.rag_embedding_source == "hash"
     assert settings.rag_embedding_model == "text-embedding-3-small"
+
+
+def test_confluence_spaces_parses_values() -> None:
+    settings = Settings(rag_confluence_spaces="OPS, ENG,SEC")
+    assert settings.rag_confluence_space_set == {"OPS", "ENG", "SEC"}
+
+
+def test_jira_project_keys_parses_values() -> None:
+    settings = Settings(rag_jira_project_keys="OPS, ENG,SEC")
+    assert settings.rag_jira_project_key_set == {"OPS", "ENG", "SEC"}

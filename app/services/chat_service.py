@@ -1,5 +1,6 @@
 import json as json_mod
 import logging
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from hashlib import sha256
 from time import perf_counter
@@ -25,6 +26,7 @@ from app.providers.base import ChatProvider, ProviderError
 from app.providers.registry import (
     ProviderRegistry,
     route_embeddings_with_fallback,
+    route_stream_with_fallback,
     route_with_fallback,
 )
 from app.rag.retrieval import (
@@ -66,6 +68,7 @@ class ChatService:
         tenant_id = request.state.tenant_id
         user_id = request.state.user_id
         classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
 
         rag_requested = bool(self._settings.rag_enabled and payload.rag and payload.rag.enabled)
         requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
@@ -87,6 +90,17 @@ class ChatService:
 
         if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=False,
+            )
             raise AppError(403, "policy_denied", "policy", reason)
 
         transformed_request = apply_transforms(payload.model_dump(), decision.transforms)
@@ -115,9 +129,19 @@ class ChatService:
             redaction_result = self._redaction_engine.redact_messages(messages)
             messages = redaction_result.messages
             redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(messages)
 
         selected_model = str(transformed_request.get("model", payload.model))
+        self._validate_model_constraints(decision, selected_model)
         max_tokens = transformed_request.get("max_tokens")
+        allowed_provider_names = self._allowed_providers(decision)
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+            }
+        )
 
         routed_provider = self._settings.provider_name
         provider_attempts = 1
@@ -131,16 +155,19 @@ class ChatService:
                     selected_model,
                     messages,
                     max_tokens,
+                    allowed_provider_names=allowed_provider_names,
                 )
                 provider_result = routing_result.result
                 routed_provider = routing_result.provider_name
                 provider_attempts = routing_result.attempts
                 fallback_chain = routing_result.fallback_chain
             else:
+                self._validate_direct_provider_constraints(allowed_provider_names)
                 provider_result = await self._provider.chat(selected_model, messages, max_tokens)
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = ChatCompletionResponse.model_validate(provider_result)
+        provider_response_hash = self._hash_value(provider_result)
 
         if citations and response.choices:
             response.choices[0].message.citations = citations
@@ -150,26 +177,29 @@ class ChatService:
         tokens_out = response.usage.completion_tokens
         cost_usd = round((tokens_in + tokens_out) * 0.000001, 8)
 
-        audit_event: dict[str, object] = {
-            "request_id": request_id,
-            "tenant_id": tenant_id,
-            "user_id": user_id,
-            "endpoint": str(request.url.path),
-            "requested_model": payload.model,
-            "selected_model": selected_model,
-            "provider": routed_provider,
-            "policy_decision": policy_decision_label,
-            "transforms_applied": [action.type for action in decision.transforms],
-            "redaction_count": redaction_count,
-            "tokens_in": tokens_in,
-            "tokens_out": tokens_out,
-            "cost_usd": cost_usd,
-            "policy_hash": decision.policy_hash,
-            "provider_attempts": provider_attempts,
-            "fallback_chain": fallback_chain,
-        }
-        if decision.deny_reason is not None:
-            audit_event["deny_reason"] = decision.deny_reason
+        audit_event = self._build_audit_event(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=str(request.url.path),
+            requested_model=payload.model,
+            selected_model=selected_model,
+            provider=routed_provider,
+            decision=decision,
+            policy_decision_label=policy_decision_label,
+            redaction_count=redaction_count,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=redacted_payload_hash,
+            provider_request_hash=provider_request_hash,
+            provider_response_hash=provider_response_hash,
+            retrieval_citations=citations,
+            streaming=False,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            cost_usd=cost_usd,
+            provider_attempts=provider_attempts,
+            fallback_chain=fallback_chain,
+        )
 
         try:
             self._audit_writer.write_event(audit_event)
@@ -215,9 +245,324 @@ class ChatService:
 
     async def handle_chat_stream(
         self, request: Request, payload: ChatCompletionRequest
-    ) -> list[str]:
-        response = await self.handle_chat(request, payload)
-        return self._build_stream_frames(response)
+    ) -> AsyncIterator[str]:
+        started = perf_counter()
+        request_id = request.state.request_id
+        tenant_id = request.state.tenant_id
+        user_id = request.state.user_id
+        classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
+
+        rag_requested = bool(self._settings.rag_enabled and payload.rag and payload.rag.enabled)
+        requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
+
+        policy_input = {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "endpoint": str(request.url.path),
+            "requested_model": payload.model,
+            "classification": classification,
+            "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
+            "connector_targets": [requested_connector] if rag_requested else [],
+            "request_metadata": {
+                "request_id": request_id,
+            },
+        }
+
+        decision = self._resolve_policy_decision(policy_input, request_id=request_id)
+
+        if not decision.allow and self._settings.opa_mode == "enforce":
+            reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=True,
+            )
+            raise AppError(403, "policy_denied", "policy", reason)
+
+        transformed_request = apply_transforms(payload.model_dump(), decision.transforms)
+        messages: list[dict[str, str]] = transformed_request["messages"]
+
+        citations: list[Citation] | None = None
+        if rag_requested and payload.rag:
+            retrieval_request = RetrievalRequest(
+                query=self._last_user_message(payload),
+                connector=payload.rag.connector,
+                k=payload.rag.top_k,
+                filters=payload.rag.filters or {},
+            )
+            chunks = self._retrieve_chunks(retrieval_request, decision)
+            if chunks:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": self._build_retrieval_context(chunks),
+                    }
+                )
+                citations = self._citations_from_chunks(chunks)
+
+        redaction_count = 0
+        if self._settings.redaction_enabled and classification in {"phi", "pii"}:
+            redaction_result = self._redaction_engine.redact_messages(messages)
+            messages = redaction_result.messages
+            redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(messages)
+
+        selected_model = str(transformed_request.get("model", payload.model))
+        self._validate_model_constraints(decision, selected_model)
+        max_tokens = transformed_request.get("max_tokens")
+        allowed_provider_names = self._allowed_providers(decision)
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+            }
+        )
+
+        routed_provider = self._settings.provider_name
+        provider_attempts = 1
+        fallback_chain: list[str] = [routed_provider]
+        first_chunk: dict[str, object] | None = None
+        try:
+            if self._provider_registry and self._settings.provider_fallback_enabled:
+                routing_result = await route_stream_with_fallback(
+                    self._provider_registry,
+                    self._settings.provider_name,
+                    selected_model,
+                    messages,
+                    max_tokens,
+                    allowed_provider_names=allowed_provider_names,
+                )
+                provider_stream = routing_result.stream
+                first_chunk = routing_result.first_chunk
+                routed_provider = routing_result.provider_name
+                provider_attempts = routing_result.attempts
+                fallback_chain = routing_result.fallback_chain
+            else:
+                self._validate_direct_provider_constraints(allowed_provider_names)
+                provider_stream = self._provider.chat_stream(selected_model, messages, max_tokens)
+                try:
+                    first_chunk = await anext(provider_stream)
+                except StopAsyncIteration:
+                    first_chunk = None
+        except ProviderError as exc:
+            raise self._app_error_from_provider_error(exc) from exc
+
+        async def event_stream() -> AsyncIterator[str]:
+            completion_parts: list[str] = []
+            usage_prompt_tokens = max(sum(len(item["content"].split()) for item in messages), 1)
+            usage_completion_tokens = 0
+            saw_finish = False
+            saw_citations = False
+            chunk_id = ""
+            chunk_created = int(datetime.now(UTC).timestamp())
+            policy_decision_label = self._policy_decision_label(decision)
+            stream_error: BaseException | None = None
+            stream_status_code = 200
+
+            try:
+                if first_chunk is not None:
+                    chunk_id = str(first_chunk.get("id", f"chatcmpl-{uuid4().hex}"))
+                    chunk_created = self._coerce_int(first_chunk.get("created"), chunk_created)
+                    choices = first_chunk.get("choices")
+                    if isinstance(choices, list):
+                        for choice in choices:
+                            if not isinstance(choice, dict):
+                                continue
+                            delta = choice.get("delta", {})
+                            if isinstance(delta, dict):
+                                content = delta.get("content")
+                                if isinstance(content, str) and content:
+                                    completion_parts.append(content)
+                                if "citations" in delta:
+                                    saw_citations = True
+                            finish_reason = choice.get("finish_reason")
+                            if isinstance(finish_reason, str) and finish_reason:
+                                saw_finish = True
+                    usage = first_chunk.get("usage")
+                    if isinstance(usage, dict):
+                        prompt_raw = usage.get("prompt_tokens")
+                        completion_raw = usage.get("completion_tokens")
+                        if isinstance(prompt_raw, int):
+                            usage_prompt_tokens = prompt_raw
+                        if isinstance(completion_raw, int):
+                            usage_completion_tokens = completion_raw
+                    yield self._sse_event(first_chunk)
+
+                async for chunk in provider_stream:
+                    if chunk_id == "":
+                        chunk_id = str(chunk.get("id", f"chatcmpl-{uuid4().hex}"))
+                    chunk_created = self._coerce_int(chunk.get("created"), chunk_created)
+
+                    choices = chunk.get("choices")
+                    if isinstance(choices, list):
+                        for choice in choices:
+                            if not isinstance(choice, dict):
+                                continue
+                            delta = choice.get("delta", {})
+                            if isinstance(delta, dict):
+                                content = delta.get("content")
+                                if isinstance(content, str) and content:
+                                    completion_parts.append(content)
+                                if "citations" in delta:
+                                    saw_citations = True
+                            finish_reason = choice.get("finish_reason")
+                            if isinstance(finish_reason, str) and finish_reason:
+                                saw_finish = True
+
+                    usage = chunk.get("usage")
+                    if isinstance(usage, dict):
+                        prompt_raw = usage.get("prompt_tokens")
+                        completion_raw = usage.get("completion_tokens")
+                        if isinstance(prompt_raw, int):
+                            usage_prompt_tokens = prompt_raw
+                        if isinstance(completion_raw, int):
+                            usage_completion_tokens = completion_raw
+
+                    yield self._sse_event(chunk)
+
+                if citations and not saw_citations:
+                    yield self._sse_event(
+                        {
+                            "id": chunk_id or f"chatcmpl-{uuid4().hex}",
+                            "object": "chat.completion.chunk",
+                            "created": chunk_created,
+                            "model": selected_model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "citations": [
+                                            citation.model_dump() for citation in citations
+                                        ]
+                                    },
+                                    "finish_reason": None,
+                                }
+                            ],
+                        }
+                    )
+
+                if not saw_finish:
+                    yield self._sse_event(
+                        {
+                            "id": chunk_id or f"chatcmpl-{uuid4().hex}",
+                            "object": "chat.completion.chunk",
+                            "created": chunk_created,
+                            "model": selected_model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {},
+                                    "finish_reason": "stop",
+                                }
+                            ],
+                        }
+                    )
+
+                yield "data: [DONE]\n\n"
+
+            except BaseException as exc:
+                stream_error = exc
+                stream_status_code = 499
+                raise
+            finally:
+                if usage_completion_tokens == 0:
+                    usage_completion_tokens = len("".join(completion_parts).split())
+                provider_response_hash = self._hash_value(
+                    {
+                        "completion_text": "".join(completion_parts),
+                        "prompt_tokens": usage_prompt_tokens,
+                        "completion_tokens": usage_completion_tokens,
+                        "chunk_id": chunk_id,
+                        "model": selected_model,
+                    }
+                )
+
+                cost_usd = round(
+                    (usage_prompt_tokens + usage_completion_tokens) * 0.000001, 8
+                )
+                audit_event = self._build_audit_event(
+                    request_id=request_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    endpoint=str(request.url.path),
+                    requested_model=payload.model,
+                    selected_model=selected_model,
+                    provider=routed_provider,
+                    decision=decision,
+                    policy_decision_label=policy_decision_label,
+                    redaction_count=redaction_count,
+                    request_payload_hash=request_payload_hash,
+                    redacted_payload_hash=redacted_payload_hash,
+                    provider_request_hash=provider_request_hash,
+                    provider_response_hash=provider_response_hash,
+                    retrieval_citations=citations,
+                    streaming=True,
+                    tokens_in=usage_prompt_tokens,
+                    tokens_out=usage_completion_tokens,
+                    cost_usd=cost_usd,
+                    provider_attempts=provider_attempts,
+                    fallback_chain=fallback_chain,
+                )
+                if stream_error is not None:
+                    audit_event["stream_error"] = type(stream_error).__name__
+                try:
+                    self._audit_writer.write_event(audit_event)
+                except AuditValidationError as exc:
+                    logger.warning(
+                        "audit_write_failed_stream",
+                        extra={
+                            "request_id": request_id,
+                            "provider": routed_provider,
+                            "error": str(exc),
+                        },
+                    )
+
+                latency_ms = int((perf_counter() - started) * 1000)
+                logger.info(
+                    "chat_stream_completed",
+                    extra={
+                        "request_id": request_id,
+                        "tenant_id": tenant_id,
+                        "user_id": user_id,
+                        "model": selected_model,
+                        "policy_decision": policy_decision_label,
+                        "redaction_count": redaction_count,
+                        "provider": routed_provider,
+                        "latency_ms": latency_ms,
+                        "token_in": usage_prompt_tokens,
+                        "token_out": usage_completion_tokens,
+                        "cost_usd": cost_usd,
+                        "provider_attempts": provider_attempts,
+                        "fallback_chain": fallback_chain,
+                        "stream_error": type(stream_error).__name__
+                        if stream_error
+                        else None,
+                    },
+                )
+                if self._settings.metrics_enabled:
+                    record_request(
+                        endpoint=str(request.url.path),
+                        provider=routed_provider,
+                        model=selected_model,
+                        policy_decision=policy_decision_label,
+                        status_code=stream_status_code,
+                        latency_s=latency_ms / 1000.0,
+                        tokens_in=usage_prompt_tokens,
+                        tokens_out=usage_completion_tokens,
+                        cost_usd=cost_usd,
+                        redaction_count=redaction_count,
+                        provider_attempts=provider_attempts,
+                    )
+
+        return event_stream()
 
     async def handle_embeddings(
         self, request: Request, payload: EmbeddingsRequest
@@ -227,6 +572,7 @@ class ChatService:
         tenant_id = request.state.tenant_id
         user_id = request.state.user_id
         classification = request.state.classification
+        request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
 
         raw_inputs = [payload.input] if isinstance(payload.input, str) else payload.input
         if not raw_inputs:
@@ -247,12 +593,25 @@ class ChatService:
 
         if not decision.allow and self._settings.opa_mode == "enforce":
             reason = decision.deny_reason or "policy_denied"
+            self._write_policy_deny_audit(
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                endpoint=str(request.url.path),
+                requested_model=payload.model,
+                decision=decision,
+                reason=reason,
+                request_payload_hash=request_payload_hash,
+                streaming=False,
+            )
             raise AppError(403, "policy_denied", "policy", reason)
 
         selected_model = payload.model
         for transform in decision.transforms:
             if transform.type == "override_model":
                 selected_model = str(transform.args.get("model", selected_model))
+        self._validate_model_constraints(decision, selected_model)
+        allowed_provider_names = self._allowed_providers(decision)
 
         inputs = list(raw_inputs)
         redaction_count = 0
@@ -262,10 +621,17 @@ class ChatService:
             )
             inputs = [item["content"] for item in redaction_result.messages]
             redaction_count = redaction_result.redaction_count
+        redacted_payload_hash = self._hash_value(inputs)
 
         routed_provider = self._settings.provider_name
         provider_attempts = 1
         fallback_chain: list[str] = [routed_provider]
+        provider_request_hash = self._hash_value(
+            {
+                "model": selected_model,
+                "inputs": inputs,
+            }
+        )
 
         try:
             if self._provider_registry and self._settings.provider_fallback_enabled:
@@ -274,42 +640,48 @@ class ChatService:
                     self._settings.provider_name,
                     selected_model,
                     inputs,
+                    allowed_provider_names=allowed_provider_names,
                 )
                 provider_result = routing_result.result
                 routed_provider = routing_result.provider_name
                 provider_attempts = routing_result.attempts
                 fallback_chain = routing_result.fallback_chain
             else:
+                self._validate_direct_provider_constraints(allowed_provider_names)
                 provider_result = await self._provider.embeddings(selected_model, inputs)
         except ProviderError as exc:
             raise self._app_error_from_provider_error(exc) from exc
         response = EmbeddingsResponse.model_validate(provider_result)
+        provider_response_hash = self._hash_value(provider_result)
 
         tokens_in = response.usage.prompt_tokens
         tokens_out = 0
         cost_usd = round(tokens_in * 0.0000002, 8)
         policy_decision_label = self._policy_decision_label(decision)
 
-        audit_event: dict[str, object] = {
-            "request_id": request_id,
-            "tenant_id": tenant_id,
-            "user_id": user_id,
-            "endpoint": str(request.url.path),
-            "requested_model": payload.model,
-            "selected_model": selected_model,
-            "provider": routed_provider,
-            "policy_decision": policy_decision_label,
-            "transforms_applied": [action.type for action in decision.transforms],
-            "redaction_count": redaction_count,
-            "tokens_in": tokens_in,
-            "tokens_out": tokens_out,
-            "cost_usd": cost_usd,
-            "policy_hash": decision.policy_hash,
-            "provider_attempts": provider_attempts,
-            "fallback_chain": fallback_chain,
-        }
-        if decision.deny_reason is not None:
-            audit_event["deny_reason"] = decision.deny_reason
+        audit_event = self._build_audit_event(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=str(request.url.path),
+            requested_model=payload.model,
+            selected_model=selected_model,
+            provider=routed_provider,
+            decision=decision,
+            policy_decision_label=policy_decision_label,
+            redaction_count=redaction_count,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=redacted_payload_hash,
+            provider_request_hash=provider_request_hash,
+            provider_response_hash=provider_response_hash,
+            retrieval_citations=[],
+            streaming=False,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            cost_usd=cost_usd,
+            provider_attempts=provider_attempts,
+            fallback_chain=fallback_chain,
+        )
 
         try:
             self._audit_writer.write_event(audit_event)
@@ -384,7 +756,7 @@ class ChatService:
 
     @staticmethod
     def _app_error_from_provider_error(exc: ProviderError) -> AppError:
-        if exc.status_code in {429, 502, 503}:
+        if exc.status_code in {429, 501, 502, 503}:
             return AppError(exc.status_code, exc.code, exc.error_type, exc.message)
         return AppError(502, "provider_upstream_error", "provider", exc.message)
 
@@ -423,11 +795,175 @@ class ChatService:
         )
 
     def _policy_decision_label(self, decision: PolicyDecision) -> str:
+        if not decision.allow:
+            return "deny"
         if self._settings.opa_mode == "observe" and decision.deny_reason:
             return "observe"
         if decision.transforms:
             return "transform"
         return "allow"
+
+    @staticmethod
+    def _allowed_providers(decision: PolicyDecision) -> set[str] | None:
+        constraints = decision.provider_constraints
+        if not isinstance(constraints, dict):
+            return None
+
+        raw_allowed = constraints.get("allowed_providers")
+        if not isinstance(raw_allowed, list):
+            return None
+        return {str(item) for item in raw_allowed if str(item).strip()}
+
+    @staticmethod
+    def _allowed_models(decision: PolicyDecision) -> set[str] | None:
+        constraints = decision.provider_constraints
+        if not isinstance(constraints, dict):
+            return None
+
+        raw_allowed = constraints.get("allowed_models")
+        if not isinstance(raw_allowed, list):
+            return None
+        return {str(item) for item in raw_allowed if str(item).strip()}
+
+    def _validate_direct_provider_constraints(
+        self, allowed_provider_names: set[str] | None
+    ) -> None:
+        if allowed_provider_names is None:
+            return
+        if self._settings.provider_name in allowed_provider_names:
+            return
+        raise AppError(
+            403,
+            "provider_forbidden",
+            "policy",
+            f"Provider not allowed by policy: {self._settings.provider_name}",
+        )
+
+    def _validate_model_constraints(self, decision: PolicyDecision, model: str) -> None:
+        allowed_models = self._allowed_models(decision)
+        if allowed_models is None:
+            return
+        if model in allowed_models:
+            return
+        raise AppError(
+            403,
+            "model_forbidden",
+            "policy",
+            f"Model not allowed by policy: {model}",
+        )
+
+    def _build_audit_event(
+        self,
+        request_id: str,
+        tenant_id: str,
+        user_id: str,
+        endpoint: str,
+        requested_model: str,
+        selected_model: str,
+        provider: str,
+        decision: PolicyDecision,
+        policy_decision_label: str,
+        redaction_count: int,
+        request_payload_hash: str,
+        redacted_payload_hash: str,
+        provider_request_hash: str | None,
+        provider_response_hash: str | None,
+        retrieval_citations: list[Citation] | None,
+        streaming: bool,
+        tokens_in: int,
+        tokens_out: int,
+        cost_usd: float,
+        provider_attempts: int,
+        fallback_chain: list[str],
+    ) -> dict[str, object]:
+        event: dict[str, object] = {
+            "request_id": request_id,
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "endpoint": endpoint,
+            "requested_model": requested_model,
+            "selected_model": selected_model,
+            "provider": provider,
+            "policy_decision": policy_decision_label,
+            "policy_decision_id": decision.decision_id,
+            "policy_evaluated_at": decision.evaluated_at,
+            "policy_allow": decision.allow,
+            "policy_mode": self._settings.opa_mode,
+            "transforms_applied": [action.type for action in decision.transforms],
+            "redaction_count": redaction_count,
+            "request_payload_hash": request_payload_hash,
+            "redacted_payload_hash": redacted_payload_hash,
+            "provider_request_hash": provider_request_hash,
+            "provider_response_hash": provider_response_hash,
+            "retrieval_citations": [
+                citation.model_dump() if isinstance(citation, Citation) else citation
+                for citation in (retrieval_citations or [])
+            ],
+            "streaming": streaming,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "cost_usd": cost_usd,
+            "policy_hash": decision.policy_hash,
+            "provider_attempts": provider_attempts,
+            "fallback_chain": fallback_chain,
+        }
+        if decision.deny_reason is not None:
+            event["deny_reason"] = decision.deny_reason
+        if decision.provider_constraints is not None:
+            event["provider_constraints"] = decision.provider_constraints
+        if decision.connector_constraints is not None:
+            event["connector_constraints"] = {
+                "allowed_connectors": decision.connector_constraints.allowed_connectors
+            }
+        return event
+
+    def _write_policy_deny_audit(
+        self,
+        request_id: str,
+        tenant_id: str,
+        user_id: str,
+        endpoint: str,
+        requested_model: str,
+        decision: PolicyDecision,
+        reason: str,
+        request_payload_hash: str,
+        streaming: bool,
+    ) -> None:
+        event = self._build_audit_event(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=endpoint,
+            requested_model=requested_model,
+            selected_model=requested_model,
+            provider="policy-gate",
+            decision=decision,
+            policy_decision_label="deny",
+            redaction_count=0,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=request_payload_hash,
+            provider_request_hash=None,
+            provider_response_hash=None,
+            retrieval_citations=[],
+            streaming=streaming,
+            tokens_in=0,
+            tokens_out=0,
+            cost_usd=0.0,
+            provider_attempts=1,
+            fallback_chain=[],
+        )
+        event["deny_reason"] = reason
+        try:
+            self._audit_writer.write_event(event)
+        except AuditValidationError as exc:
+            logger.warning(
+                "audit_write_failed_policy_deny",
+                extra={
+                    "request_id": request_id,
+                    "reason": reason,
+                    "error": str(exc),
+                },
+            )
 
     def _allowed_connectors(self, decision: PolicyDecision) -> set[str] | None:
         if (
@@ -498,104 +1034,28 @@ class ChatService:
         ]
 
     @staticmethod
-    def _build_stream_frames(response: ChatCompletionResponse) -> list[str]:
-        if not response.choices:
-            return ["data: [DONE]\n\n"]
+    def _coerce_int(value: object, default: int) -> int:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return default
+        return default
 
-        message = response.choices[0].message
-        content_chunks = ChatService._split_content(message.content)
-
-        frames: list[str] = []
-        first_delta: dict[str, object] = {"role": "assistant"}
-        if content_chunks:
-            first_delta["content"] = content_chunks[0]
-
-        frames.append(
-            ChatService._sse_event(
-                {
-                    "id": response.id,
-                    "object": "chat.completion.chunk",
-                    "created": response.created,
-                    "model": response.model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": first_delta,
-                            "finish_reason": None,
-                        }
-                    ],
-                }
-            )
+    @staticmethod
+    def _hash_value(value: object) -> str:
+        canonical = json_mod.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
         )
-
-        for chunk in content_chunks[1:]:
-            frames.append(
-                ChatService._sse_event(
-                    {
-                        "id": response.id,
-                        "object": "chat.completion.chunk",
-                        "created": response.created,
-                        "model": response.model,
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {"content": chunk},
-                                "finish_reason": None,
-                            }
-                        ],
-                    }
-                )
-            )
-
-        if message.citations:
-            frames.append(
-                ChatService._sse_event(
-                    {
-                        "id": response.id,
-                        "object": "chat.completion.chunk",
-                        "created": response.created,
-                        "model": response.model,
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {
-                                    "citations": [
-                                        citation.model_dump() for citation in message.citations
-                                    ]
-                                },
-                                "finish_reason": None,
-                            }
-                        ],
-                    }
-                )
-            )
-
-        frames.append(
-            ChatService._sse_event(
-                {
-                    "id": response.id,
-                    "object": "chat.completion.chunk",
-                    "created": response.created,
-                    "model": response.model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {},
-                            "finish_reason": "stop",
-                        }
-                    ],
-                }
-            )
-        )
-        frames.append("data: [DONE]\n\n")
-        return frames
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _sse_event(payload: dict[str, object]) -> str:
         return f"data: {json_mod.dumps(payload, separators=(',', ':'))}\n\n"
-
-    @staticmethod
-    def _split_content(content: str, chunk_size: int = 80) -> list[str]:
-        if not content:
-            return []
-        return [content[index : index + chunk_size] for index in range(0, len(content), chunk_size)]

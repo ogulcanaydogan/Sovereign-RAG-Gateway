@@ -65,3 +65,33 @@ def test_azure_openai_embeddings_normalizes_model() -> None:
     provider._post = fake_post  # type: ignore[method-assign]
     result = asyncio.run(provider.embeddings(model="embed-deploy", inputs=["hello"]))
     assert result["model"] == "embed-deploy"
+
+
+def test_azure_openai_chat_stream_adds_model_to_chunks() -> None:
+    provider = AzureOpenAIProvider(
+        endpoint="https://example.openai.azure.com",
+        api_key="secret",
+    )
+
+    async def fake_stream_post(
+        deployment: str,
+        operation: str,
+        body: dict[str, object],
+    ):
+        assert deployment == "chat-deploy"
+        assert operation == "chat/completions"
+        assert body["stream"] is True
+        yield {
+            "id": "chunk-1",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        }
+
+    provider._stream_post = fake_stream_post  # type: ignore[method-assign]
+    chunks = asyncio.run(_collect(provider.chat_stream("chat-deploy", [], 16)))
+    assert chunks[0]["choices"][0]["finish_reason"] == "stop"
+
+
+async def _collect(stream):
+    return [chunk async for chunk in stream]

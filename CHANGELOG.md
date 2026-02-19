@@ -1,8 +1,35 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 - 2026-02-18
 
-## v0.3.0-rc1 - 2026-02-18
+### Streaming and Provider Adapters
+- Added OpenAI-compatible SSE streaming for chat completions with `stream: true` parameter.
+- Added Azure OpenAI provider adapter with deployment-scoped endpoints and model normalization (`app/providers/azure_openai.py`).
+- Added Anthropic Messages API adapter with OpenAI-shape response normalization (`app/providers/anthropic.py`).
+- Added capability-aware provider routing via `eligible_chain()` and `ProviderCapabilities` dataclass.
+- Added `route_stream_with_fallback()` for streaming-aware provider selection with first-chunk validation.
+
+### RAG Connectors
+- Added S3 connector for JSONL index retrieval with local caching and prefix-based multi-object loading (`app/rag/connectors/s3.py`).
+- Added Confluence read-only connector with space filtering, pagination, and BM25 scoring (`app/rag/connectors/confluence.py`).
+- Added Jira read-only connector with project key filtering, pagination, and BM25 scoring (`app/rag/connectors/jira.py`).
+
+### Evidence and Compliance
+- Added evidence replay bundle generator with SHA-256 chain verification and tamper detection (`scripts/audit_replay_bundle.py`).
+- Added signed evidence bundle output with detached RSA signatures (`scripts/generate_release_evidence_artifacts.py`).
+- Added evidence bundle JSON Schema contract (`docs/contracts/v1/evidence-bundle.schema.json`).
+- Added threat model document with threat matrix, controls, and residual risk (`docs/architecture/threat-model.md`).
+- Added compliance control-to-evidence mapping (`docs/operations/compliance-control-mapping.md`).
+- Added incident replay runbook with signed evidence procedure (`docs/operations/incident-replay-runbook.md`).
+
+### Operations and Deployment
+- Added EKS reference deployment guide with validated resource manifests (`docs/operations/eks-reference-deployment.md`).
+- Added Confluence connector setup guide (`docs/operations/confluence-connector.md`).
+- Added Jira connector setup guide (`docs/operations/jira-connector.md`).
+- Added EKS reference validation CI workflow (`.github/workflows/eks-reference-validate.yml`).
+- Added evidence replay smoke CI workflow (`.github/workflows/evidence-replay-smoke.yml`).
+
+### Previous (v0.3.0-rc1)
 - Added multi-provider routing with cost-aware fallback via `ProviderRegistry` (`app/providers/registry.py`).
 - Added `HTTPOpenAIProvider` for real OpenAI-compatible upstream endpoints (`app/providers/http_openai.py`).
 - Added Prometheus metrics module with 6 counters and 1 histogram, exposed at `/metrics` (`app/metrics.py`).

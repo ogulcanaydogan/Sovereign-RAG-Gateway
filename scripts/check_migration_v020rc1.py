@@ -24,6 +24,7 @@ def _contract_checks(contracts_dir: Path) -> list[CheckResult]:
         "policy-decision.schema.json",
         "audit-event.schema.json",
         "citations-extension.schema.json",
+        "evidence-bundle.schema.json",
     ]
     results: list[CheckResult] = []
     for name in required:

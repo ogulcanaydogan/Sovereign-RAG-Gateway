@@ -33,7 +33,10 @@ app/
 ├── rag/                  # Retrieval Augmented Generation subsystem
 │   ├── connectors/       # Pluggable retrieval backends
 │   │   ├── filesystem.py # JSON Lines index on local filesystem
-│   │   └── postgres.py   # PostgreSQL with pgvector for semantic retrieval
+│   │   ├── postgres.py   # PostgreSQL with pgvector for semantic retrieval
+│   │   ├── s3.py         # S3 JSONL index with local caching
+│   │   ├── confluence.py # Confluence read-only API connector with BM25 scoring
+│   │   └── jira.py       # Jira read-only API connector with BM25 scoring
 │   ├── embeddings.py     # Embedding generators (hash-based local, HTTP remote)
 │   ├── registry.py       # Connector registration and lookup
 │   ├── retrieval.py      # RetrievalOrchestrator — policy-aware retrieval coordination
@@ -49,10 +52,12 @@ app/
 │   └── chat_service.py   # ChatService — full pipeline: auth→policy→retrieval→redact→egress
 │
 ├── providers/            # Upstream LLM provider abstraction
-│   ├── base.py           # ChatProvider interface
-│   ├── registry.py       # ProviderRegistry — multi-provider routing with cost-aware fallback
-│   ├── http_openai.py    # HTTPOpenAIProvider — real OpenAI-compatible HTTP adapter
-│   └── stub.py           # In-memory mock for testing
+│   ├── base.py           # ChatProvider interface + ProviderCapabilities
+│   ├── registry.py       # ProviderRegistry — capability-aware routing with cost fallback
+│   ├── http_openai.py    # HTTPOpenAIProvider — OpenAI-compatible HTTP adapter
+│   ├── azure_openai.py   # AzureOpenAIProvider — deployment-scoped Azure endpoints
+│   ├── anthropic.py      # AnthropicProvider — Messages API with OpenAI normalization
+│   └── stub.py           # In-memory mock for testing (chat + streaming)
 │
 ├── metrics.py            # Prometheus metrics — counters, histograms, /metrics endpoint
 │
@@ -237,6 +242,9 @@ Retrieval backends are registered through a connector registry pattern. Each con
 **Current connectors:**
 - `FilesystemConnector`: reads from a JSON Lines index. Deterministic, no external dependencies. Suitable for testing and small-scale deployments.
 - `PostgresPgvectorConnector`: semantic retrieval using PostgreSQL with the pgvector extension. Supports both hash-based (local, deterministic) and HTTP-based (remote OpenAI-compatible) embedding generation.
+- `S3Connector`: reads JSONL indexes stored in S3 with local caching and prefix-based multi-object loading. Suitable for cloud-native deployments.
+- `ConfluenceConnector`: read-only connector for Confluence Cloud API with space filtering, pagination, and BM25 relevance scoring.
+- `JiraConnector`: read-only connector for Jira Cloud API with project key filtering, pagination, and BM25 relevance scoring.
 
 ### Embedding Strategy
 Two embedding generators address different deployment constraints:
@@ -276,10 +284,17 @@ flowchart TD
     style COST fill:#fff3e0,stroke:#e65100
 ```
 
+**Supported providers:**
+- `HTTPOpenAIProvider`: any OpenAI-compatible endpoint (chat, embeddings, streaming).
+- `AzureOpenAIProvider`: Azure OpenAI deployment-scoped endpoints with model normalization.
+- `AnthropicProvider`: Anthropic Messages API with OpenAI-shape response normalization (chat only, no streaming).
+- `StubProvider`: in-memory mock for testing (chat, embeddings, streaming).
+
 **Routing behaviour:**
-- Primary provider is attempted first. On retryable errors (429, 502, 503), the next provider in the fallback chain is tried.
-- Fallback chain is ordered: primary first, then remaining enabled providers sorted by priority.
+- `eligible_chain()` filters providers by operation type (chat, embeddings, streaming) and model support via `ProviderCapabilities` before building the fallback chain.
+- Primary provider is attempted first. On retryable errors (429, 502, 503), the next eligible provider in the chain is tried.
 - `cheapest_for_tokens()` selects the lowest-cost provider for a given token estimate.
+- `route_stream_with_fallback()` validates the first SSE chunk before committing to a streaming provider.
 - Routing results (provider name, attempts, fallback chain) are recorded in audit events for forensic analysis.
 
 ## Observability

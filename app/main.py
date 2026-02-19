@@ -14,11 +14,13 @@ from app.middleware.request_id import RequestIDMiddleware
 from app.policy.client import OPAClient
 from app.providers.anthropic import AnthropicProvider
 from app.providers.azure_openai import AzureOpenAIProvider
-from app.providers.base import ChatProvider
+from app.providers.base import ChatProvider, ProviderCapabilities
 from app.providers.http_openai import HTTPOpenAIProvider
 from app.providers.registry import ProviderCost, ProviderEntry, ProviderRegistry
 from app.providers.stub import StubProvider
+from app.rag.connectors.confluence import ConfluenceConnector
 from app.rag.connectors.filesystem import FilesystemConnector
+from app.rag.connectors.jira import JiraConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
 from app.rag.embeddings import (
@@ -61,6 +63,11 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
             name="stub",
             provider=stub,
             cost=ProviderCost(input_per_token=0.000001, output_per_token=0.000001),
+            capabilities=ProviderCapabilities(
+                chat=True,
+                embeddings=True,
+                streaming=True,
+            ),
             priority=100,
         )
     )
@@ -68,13 +75,38 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
     if settings.provider_config:
         for entry in json_mod.loads(settings.provider_config):
             provider_type = str(entry.get("type", "openai_compatible")).strip().lower()
+            raw_capabilities_cfg = entry.get("capabilities", {})
+            capabilities_cfg = (
+                raw_capabilities_cfg if isinstance(raw_capabilities_cfg, dict) else {}
+            )
+            raw_prefixes = capabilities_cfg.get("model_prefixes", [])
+            if isinstance(raw_prefixes, str):
+                raw_prefixes = [raw_prefixes]
+            model_prefixes = tuple(
+                str(item).strip()
+                for item in raw_prefixes
+                if isinstance(item, str) and str(item).strip()
+            )
             provider: ChatProvider
+            capabilities = ProviderCapabilities(
+                chat=bool(capabilities_cfg.get("chat", True)),
+                embeddings=bool(capabilities_cfg.get("embeddings", True)),
+                streaming=bool(capabilities_cfg.get("streaming", True)),
+                model_prefixes=model_prefixes,
+            )
             if provider_type in {"openai_compatible", "openai"}:
                 provider = HTTPOpenAIProvider(
                     base_url=entry["base_url"],
                     api_key=entry["api_key"],
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=True,
+                        streaming=True,
+                        model_prefixes=model_prefixes,
+                    )
             elif provider_type == "azure_openai":
                 provider = AzureOpenAIProvider(
                     endpoint=entry["endpoint"],
@@ -82,6 +114,13 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                     api_version=entry.get("api_version", "2024-10-21"),
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=True,
+                        streaming=True,
+                        model_prefixes=model_prefixes,
+                    )
             elif provider_type == "anthropic":
                 provider = AnthropicProvider(
                     api_key=entry["api_key"],
@@ -89,6 +128,13 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                     anthropic_version=entry.get("anthropic_version", "2023-06-01"),
                     timeout_s=entry.get("timeout_s", 30.0),
                 )
+                if "capabilities" not in entry:
+                    capabilities = ProviderCapabilities(
+                        chat=True,
+                        embeddings=False,
+                        streaming=False,
+                        model_prefixes=model_prefixes,
+                    )
             else:
                 raise RuntimeError(
                     f"Unsupported provider type in SRG_PROVIDER_CONFIG: {provider_type}"
@@ -102,6 +148,7 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
                         input_per_token=cost_cfg.get("input_per_token", 0.0),
                         output_per_token=cost_cfg.get("output_per_token", 0.0),
                     ),
+                    capabilities=capabilities,
                     priority=entry.get("priority", 50),
                     enabled=entry.get("enabled", True),
                 )
@@ -114,7 +161,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.3.0-rc1")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.3.0")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -146,6 +193,32 @@ def create_app() -> FastAPI:
                 index_key=settings.rag_s3_index_key,
                 region=settings.rag_s3_region,
                 endpoint_url=settings.rag_s3_endpoint_url,
+            ),
+        )
+    if (
+        settings.rag_confluence_base_url
+        and settings.rag_confluence_email
+        and settings.rag_confluence_api_token
+    ):
+        connector_registry.register(
+            "confluence",
+            ConfluenceConnector(
+                base_url=settings.rag_confluence_base_url,
+                email=settings.rag_confluence_email,
+                api_token=settings.rag_confluence_api_token,
+                spaces=settings.rag_confluence_space_set,
+                cache_ttl_seconds=settings.rag_confluence_cache_ttl_seconds,
+            ),
+        )
+    if settings.rag_jira_base_url and settings.rag_jira_email and settings.rag_jira_api_token:
+        connector_registry.register(
+            "jira",
+            JiraConnector(
+                base_url=settings.rag_jira_base_url,
+                email=settings.rag_jira_email,
+                api_token=settings.rag_jira_api_token,
+                project_keys=settings.rag_jira_project_key_set,
+                cache_ttl_seconds=settings.rag_jira_cache_ttl_seconds,
             ),
         )
 

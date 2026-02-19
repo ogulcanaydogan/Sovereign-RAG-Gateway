@@ -45,7 +45,7 @@ async def chat_completions(
     if payload.stream:
         frames = await service.handle_chat_stream(request, payload)
         return StreamingResponse(
-            iter(frames),
+            frames,
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

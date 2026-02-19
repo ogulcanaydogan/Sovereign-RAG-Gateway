@@ -34,8 +34,18 @@ def main() -> None:
         "selected_model": "gpt-4o-mini",
         "provider": "stub",
         "policy_decision": "allow",
+        "policy_decision_id": "decision-1",
+        "policy_evaluated_at": "2026-02-17T00:00:00Z",
+        "policy_allow": True,
+        "policy_mode": "enforce",
         "transforms_applied": [],
         "redaction_count": 0,
+        "request_payload_hash": "req-hash",
+        "redacted_payload_hash": "redacted-hash",
+        "provider_request_hash": "provider-req-hash",
+        "provider_response_hash": "provider-resp-hash",
+        "retrieval_citations": [],
+        "streaming": False,
         "tokens_in": 10,
         "tokens_out": 10,
         "cost_usd": 0.00002,
@@ -43,6 +53,53 @@ def main() -> None:
         "payload_hash": "h1",
         "prev_hash": "",
         "created_at": "2026-02-17T00:00:00Z",
+    }
+    evidence_schema = json.loads(
+        (contracts / "evidence-bundle.schema.json").read_text(encoding="utf-8")
+    )
+    evidence_fixture = {
+        "bundle_version": "v1",
+        "request_id": "req-1",
+        "generated_at": "2026-02-17T00:00:00Z",
+        "policy": {
+            "decision_id": "decision-1",
+            "policy_hash": "abc",
+            "policy_mode": "enforce",
+            "allow": True,
+            "deny_reason": None,
+        },
+        "redaction": {
+            "count": 0,
+            "request_payload_hash": "req-hash",
+            "redacted_payload_hash": "redacted-hash",
+        },
+        "retrieval": {
+            "enabled": False,
+            "connector": None,
+            "citations": [],
+        },
+        "provider": {
+            "provider": "stub",
+            "selected_model": "gpt-4o-mini",
+            "attempts": 1,
+            "fallback_chain": [],
+            "provider_request_hash": "provider-req-hash",
+            "provider_response_hash": "provider-resp-hash",
+        },
+        "usage": {
+            "tokens_in": 10,
+            "tokens_out": 10,
+            "cost_usd": 0.00002,
+        },
+        "integrity": {
+            "prev_hash": "",
+            "payload_hash": "payload-hash",
+            "chain_verified": True,
+        },
+        "source": {
+            "audit_log_path": "artifacts/audit/events.jsonl",
+            "event_id": "evt-1",
+        },
     }
     citations_fixture = {
         "choices": [
@@ -65,6 +122,7 @@ def main() -> None:
     validate(instance=policy_fixture, schema=policy_schema)
     validate(instance=audit_fixture, schema=audit_schema)
     validate(instance=citations_fixture, schema=citations_schema)
+    validate(instance=evidence_fixture, schema=evidence_schema)
     print("Schema validation succeeded")
 
 

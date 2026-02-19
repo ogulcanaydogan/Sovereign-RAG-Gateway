@@ -13,3 +13,9 @@ helm upgrade --install srg charts/sovereign-rag-gateway \
   --create-namespace \
   -f deploy/eks/values.example.yaml
 ```
+
+Validate the reference profile locally:
+
+```bash
+./scripts/eks_reference_validate.sh
+```

@@ -14,8 +14,18 @@
     "selected_model",
     "provider",
     "policy_decision",
+    "policy_decision_id",
+    "policy_evaluated_at",
+    "policy_allow",
+    "policy_mode",
     "transforms_applied",
     "redaction_count",
+    "request_payload_hash",
+    "redacted_payload_hash",
+    "provider_request_hash",
+    "provider_response_hash",
+    "retrieval_citations",
+    "streaming",
     "tokens_in",
     "tokens_out",
     "cost_usd",
@@ -37,6 +47,16 @@
       "type": "string",
       "enum": ["allow", "deny", "transform", "observe"]
     },
+    "policy_decision_id": {"type": "string"},
+    "policy_evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy_allow": {"type": "boolean"},
+    "policy_mode": {
+      "type": "string",
+      "enum": ["enforce", "observe"]
+    },
     "deny_reason": {"type": "string"},
     "transforms_applied": {
       "type": "array",
@@ -46,6 +66,30 @@
       "type": "integer",
       "minimum": 0
     },
+    "request_payload_hash": {"type": "string"},
+    "redacted_payload_hash": {"type": "string"},
+    "provider_request_hash": {
+      "type": ["string", "null"]
+    },
+    "provider_response_hash": {
+      "type": ["string", "null"]
+    },
+    "retrieval_citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "connector", "uri", "chunk_id", "score"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "connector": {"type": "string"},
+          "uri": {"type": "string"},
+          "chunk_id": {"type": "string"},
+          "score": {"type": "number"}
+        }
+      }
+    },
+    "streaming": {"type": "boolean"},
     "tokens_in": {
       "type": "integer",
       "minimum": 0
@@ -59,6 +103,30 @@
       "minimum": 0
     },
     "policy_hash": {"type": "string"},
+    "provider_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_providers": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "allowed_models": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "connector_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_connectors": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
     "provider_attempts": {
       "type": "integer",
       "minimum": 1

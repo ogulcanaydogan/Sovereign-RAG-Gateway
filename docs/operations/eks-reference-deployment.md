@@ -113,3 +113,14 @@ curl -N http://127.0.0.1:18080/v1/chat/completions \
 helm -n srg-system history srg
 helm -n srg-system rollback srg <REVISION>
 ```
+
+## 8. CI Validation
+
+This guide and its EKS values profile are validated in CI by:
+
+```bash
+./scripts/eks_reference_validate.sh
+```
+
+The script lints the chart, renders with `deploy/eks/values.example.yaml`, and runs
+`kubectl apply --dry-run=client` to catch invalid manifests before merge.
