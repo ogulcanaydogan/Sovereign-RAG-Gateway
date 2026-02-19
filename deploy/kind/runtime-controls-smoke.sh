@@ -43,9 +43,11 @@ helm upgrade --install "$RELEASE_NAME" "$ROOT_DIR/charts/sovereign-rag-gateway" 
   --set env.budgetWindowSeconds=3600 \
   --set env.webhookEnabled=true \
   --set env.webhookMaxRetries=1 \
-  --set-string env.tracingEnabled=true \
+  --set env.tracingEnabled=true \
   --set env.tracingMaxTraces=200
 
+kubectl -n "$NAMESPACE" rollout status deployment/"$RELEASE_NAME"-sovereign-rag-gateway --timeout=180s
+kubectl -n "$NAMESPACE" rollout restart deployment/"$RELEASE_NAME"-sovereign-rag-gateway >/dev/null
 kubectl -n "$NAMESPACE" rollout status deployment/"$RELEASE_NAME"-sovereign-rag-gateway --timeout=180s
 kubectl -n "$NAMESPACE" get pods -o wide
 
