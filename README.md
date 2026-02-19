@@ -2,7 +2,7 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-![Version](https://img.shields.io/badge/version-0.3.0--rc1-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
@@ -105,6 +105,9 @@ graph TB
             REG["Connector Registry"]
             FS["Filesystem\nConnector"]
             PG["PostgreSQL\npgvector"]
+            S3C["S3\nConnector"]
+            CONFL["Confluence\nConnector"]
+            JIRAC["Jira\nConnector"]
         end
 
         subgraph EVIDENCE["Evidence Layer"]
@@ -123,6 +126,9 @@ graph TB
     ORCH --> REG
     REG --> FS
     REG --> PG
+    REG --> S3C
+    REG --> CONFL
+    REG --> JIRAC
     ORCH --> EGRESS
     EGRESS --> LLM["Upstream LLM\nProvider"]
 
@@ -150,8 +156,8 @@ graph TB
 |---|---|---|
 | Ingress | `middleware/auth.py`, `middleware/request_id.py` | Identity extraction, classification headers, request tracing |
 | Enforcement | `policy/client.py`, `policy/transforms.py`, `redaction/engine.py` | OPA evaluation, fail-closed contract, PHI/PII scrubbing |
-| Retrieval | `rag/retrieval.py`, `rag/registry.py`, `rag/connectors/` | Policy-scoped connector dispatch, citation integrity |
-| Egress | `providers/registry.py`, `providers/http_openai.py` | Multi-provider routing, cost-aware fallback |
+| Retrieval | `rag/retrieval.py`, `rag/registry.py`, `rag/connectors/` | Policy-scoped dispatch across 5 connectors (filesystem, pgvector, S3, Confluence, Jira) |
+| Egress | `providers/registry.py`, `providers/http_openai.py`, `providers/azure_openai.py`, `providers/anthropic.py` | Multi-provider routing with streaming, cost-aware fallback |
 | Evidence | `audit/writer.py` | Hash-chained JSON Lines, schema-validated audit events |
 
 Full architecture reference: [`ARCHITECTURE.md`](ARCHITECTURE.md)
@@ -225,9 +231,15 @@ graph TB
 
     REG --> FS["Filesystem\nConnector"]
     REG --> PG["PostgreSQL\npgvector"]
+    REG --> S3["S3\nConnector"]
+    REG --> CONFL["Confluence\n(read-only)"]
+    REG --> JIRA["Jira\n(read-only)"]
 
     FS --> MERGE["Merge & Rank\nResults"]
     PG --> MERGE
+    S3 --> MERGE
+    CONFL --> MERGE
+    JIRA --> MERGE
 
     MERGE --> CIT["Citation\nMetadata"]
     CIT --> VERIFY["Citation Integrity\nVerification"]
@@ -276,17 +288,18 @@ Each audit event is hash-chained using SHA-256 — every event records the `payl
 
 ```mermaid
 flowchart TD
-    REQ["Chat / Embeddings\nRequest"] --> REG["Provider Registry"]
+    REQ["Chat / Embeddings /\nStream Request"] --> REG["Provider Registry\n(eligible_chain)"]
 
-    REG --> SELECT{"Select\nPrimary"}
+    REG --> CAP{"Capability\nCheck"}
+    CAP -->|"chat / embeddings\n/ streaming"| SELECT{"Select\nPrimary"}
 
-    SELECT --> P1["Provider A\n(priority: 10)"]
-    P1 -->|"success"| OK["Return Response"]
+    SELECT --> P1["OpenAI\n(priority: 10)"]
+    P1 -->|"success"| OK["Return Response\nor SSE Stream"]
     P1 -->|"429 / 502 / 503"| FB{"Fallback?"}
 
-    FB -->|"next in chain"| P2["Provider B\n(priority: 50)"]
+    FB -->|"next in chain"| P2["Azure OpenAI\n(priority: 50)"]
     P2 -->|"success"| OK
-    P2 -->|"429 / 502 / 503"| P3["Provider C\n(priority: 100)"]
+    P2 -->|"429 / 502 / 503"| P3["Anthropic\n(priority: 100)"]
     P3 --> OK
 
     FB -->|"no more providers"| ERR["ProviderError"]
@@ -298,9 +311,10 @@ flowchart TD
     style OK fill:#2e7d32,color:#fff,stroke:#1b5e20
     style ERR fill:#d32f2f,color:#fff,stroke:#b71c1c
     style COST fill:#fff3e0,stroke:#e65100
+    style CAP fill:#fff3e0,stroke:#e65100
 ```
 
-Priority-ordered fallback chain with automatic failover on retryable errors (429, 502, 503). Cost-per-token selection via `cheapest_for_tokens()` enables budget-aware routing across multiple upstream LLM providers. Routing decisions — provider name, attempts, and full fallback chain — are recorded in audit events for forensic analysis.
+Capability-aware provider routing with `eligible_chain()` filters providers by operation type (chat, embeddings, streaming) and model support before attempting fallback. Priority-ordered fallback chain with automatic failover on retryable errors (429, 502, 503). Cost-per-token selection via `cheapest_for_tokens()` enables budget-aware routing across OpenAI, Azure OpenAI, and Anthropic. Routing decisions — provider name, attempts, and full fallback chain — are recorded in audit events for forensic analysis.
 
 ### Observability Stack
 
@@ -616,20 +630,21 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 
 | Metric | Value |
 |---|---|
-| Application code | ~2,354 lines across 34 modules |
-| Test code | ~1,312 lines across 29 test files |
-| Test-to-code ratio | 56% |
-| Support scripts | ~1,118 lines across 8 scripts |
-| Documentation | ~1,915 lines across 19 documents |
-| Current version | 0.3.0-rc1 |
+| Application code | ~4,970 lines across 44 modules |
+| Test code | ~2,550 lines across 42 test files |
+| Test-to-code ratio | 51% |
+| Test functions | 101 (unit, integration, contract, benchmark) |
+| Support scripts | ~1,830 lines across 13 scripts |
+| Documentation | ~1,150 lines across 22 documents |
+| Current version | 0.3.0 |
 
 ### Quality and Contracts
 
 | Metric | Value |
 |---|---|
-| Type checking | mypy strict mode (zero errors) |
+| Type checking | mypy strict mode (zero errors on 44 source files) |
 | Linting | ruff (zero warnings) |
-| JSON Schema contracts | 3 (policy decision, audit event, citations) |
+| JSON Schema contracts | 4 (policy decision, audit event, citations, evidence bundle) |
 | Test coverage scope | Unit, integration, contract, benchmark validation |
 | Benchmark eval gates | 2 (citation integrity, pgvector ranking) |
 
@@ -639,7 +654,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 |---|---|
 | Kubernetes manifests | 25 YAML files |
 | Helm chart templates | 12 templates with values schema validation |
-| CI/CD pipelines | 3 (test, deploy-smoke on kind, signed release) |
+| CI/CD pipelines | 5 (test, deploy-smoke, signed release, EKS validation, evidence replay) |
 | GitOps environments | 3 (dev, staging, prod via Argo CD) |
 | Prometheus metrics | 6 counters + 1 histogram |
 | Grafana dashboard panels | 10 panels across 4 operational domains |
