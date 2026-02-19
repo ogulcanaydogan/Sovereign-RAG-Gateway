@@ -38,3 +38,10 @@ def test_budget_tenant_ceiling_map_parses_values() -> None:
         "tenant-a": 1000,
         "tenant-b": 2500,
     }
+
+
+def test_budget_tenant_ceiling_map_ignores_non_positive_values() -> None:
+    settings = Settings(
+        budget_tenant_ceilings="tenant-a:0, tenant-b:-10, tenant-c:500, :100, tenant-d:notanint"
+    )
+    assert settings.budget_tenant_ceiling_map == {"tenant-c": 500}

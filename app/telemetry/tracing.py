@@ -60,6 +60,7 @@ class SpanContext:
         self.span_id = uuid4().hex[:16]
         self._start: float = 0.0
         self._span: Span | None = None
+        self._events: list[dict[str, Any]] = []
 
     def __enter__(self) -> "SpanContext":
         self._start = perf_counter()
@@ -74,7 +75,7 @@ class SpanContext:
         end = perf_counter()
         duration = (end - self._start) * 1000
         status = "ok" if exc_type is None else "error"
-        events: list[dict[str, Any]] = []
+        events: list[dict[str, Any]] = list(self._events)
         if exc_val is not None:
             events.append({
                 "name": "exception",
@@ -106,11 +107,14 @@ class SpanContext:
 
     def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> None:
         """Record a span event."""
-        if self._span is not None:
-            self._span.events.append({
-                "name": name,
-                "attributes": attributes or {},
-            })
+        event = {
+            "name": name,
+            "attributes": attributes or {},
+        }
+        if self._span is None:
+            self._events.append(event)
+            return
+        self._span.events.append(event)
 
 
 class SpanCollector:

@@ -53,6 +53,7 @@ def test_webhook_dispatcher_delivers_to_subscribed_endpoint(
 
     body = json.loads(str(captured[0]["content"]))
     assert body["event_type"] == "policy_denied"
+    assert body["gateway_version"] == "0.4.0-rc1"
 
 
 def test_webhook_dispatcher_should_fire_only_for_subscribed_event() -> None:

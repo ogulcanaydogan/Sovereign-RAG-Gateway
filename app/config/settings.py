@@ -99,7 +99,11 @@ class Settings(BaseSettings):
                 continue
             tenant, ceiling_str = item.split(":", 1)
             try:
-                result[tenant.strip()] = int(ceiling_str.strip())
+                normalized_tenant = tenant.strip()
+                normalized_ceiling = int(ceiling_str.strip())
+                if not normalized_tenant or normalized_ceiling <= 0:
+                    continue
+                result[normalized_tenant] = normalized_ceiling
             except ValueError:
                 continue
         return result

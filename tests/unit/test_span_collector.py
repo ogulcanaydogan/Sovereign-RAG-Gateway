@@ -28,3 +28,18 @@ def test_span_collector_evicts_oldest_trace() -> None:
     assert collector.get_trace("req-1") == []
     assert len(collector.get_trace("req-2")) == 1
 
+
+def test_span_context_add_event_records_during_active_span() -> None:
+    collector = SpanCollector(max_traces=10)
+
+    with collector.span(trace_id="req-events", operation="policy.evaluate") as span:
+        span.add_event("policy.input_built", {"tenant_id": "tenant-a"})
+
+    trace = collector.get_trace("req-events")
+    assert len(trace) == 1
+    assert trace[0]["events"] == [
+        {
+            "name": "policy.input_built",
+            "attributes": {"tenant_id": "tenant-a"},
+        }
+    ]

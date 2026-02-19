@@ -14,7 +14,7 @@ Webhook payload is a JSON envelope:
     {
         "event_type": "policy_denied",
         "timestamp": "2026-02-19T12:00:00+00:00",
-        "gateway_version": "0.4.0",
+        "gateway_version": "0.4.0-rc1",
         "payload": { ... audit event fields ... }
     }
 
@@ -37,7 +37,7 @@ import httpx
 
 logger = logging.getLogger("srg.webhooks")
 
-GATEWAY_VERSION = "0.4.0"
+GATEWAY_VERSION = "0.4.0-rc1"
 
 
 class WebhookEventType(Enum):
@@ -134,14 +134,21 @@ class WebhookDispatcher:
             if event_type not in endpoint.event_types:
                 continue
 
-            result = await self._deliver(endpoint, body)
+            result = await self._deliver(
+                endpoint=endpoint,
+                body=body,
+                event_type=event_type.value,
+            )
             results.append(result)
             self._record_delivery(result)
 
         return results
 
     async def _deliver(
-        self, endpoint: WebhookEndpoint, body: str
+        self,
+        endpoint: WebhookEndpoint,
+        body: str,
+        event_type: str,
     ) -> WebhookDeliveryResult:
         """POST the webhook body to an endpoint with retry."""
         headers: dict[str, str] = {
@@ -166,7 +173,7 @@ class WebhookDispatcher:
                     )
                     return WebhookDeliveryResult(
                         endpoint_url=endpoint.url,
-                        event_type=json.loads(body).get("event_type", "unknown"),
+                        event_type=event_type,
                         status_code=resp.status_code,
                         success=200 <= resp.status_code < 300,
                         duration_ms=round((perf_counter() - started) * 1000, 3),
@@ -184,7 +191,7 @@ class WebhookDispatcher:
 
         return WebhookDeliveryResult(
             endpoint_url=endpoint.url,
-            event_type=json.loads(body).get("event_type", "unknown"),
+            event_type=event_type,
             success=False,
             error=last_error,
             duration_ms=0.0,

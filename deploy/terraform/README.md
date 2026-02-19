@@ -2,7 +2,7 @@
 
 This module provisions a production-oriented baseline for Sovereign RAG Gateway on AWS:
 
-- VPC with public/private subnets and NAT gateway
+- VPC with public/private subnets and per-AZ NAT gateways
 - EKS control plane + managed node group
 - Helm deployment of the gateway into a dedicated namespace
 - EKS secrets encryption at rest
