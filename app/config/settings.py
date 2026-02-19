@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     rag_jira_api_token: str | None = None
     rag_jira_project_keys: str = ""
     rag_jira_cache_ttl_seconds: float = 60.0
+    rag_sharepoint_base_url: str = "https://graph.microsoft.com/v1.0"
+    rag_sharepoint_site_id: str | None = None
+    rag_sharepoint_drive_id: str | None = None
+    rag_sharepoint_bearer_token: str | None = None
+    rag_sharepoint_allowed_path_prefixes: str = ""
+    rag_sharepoint_cache_ttl_seconds: float = 60.0
     rag_embedding_dim: int = 16
     rag_embedding_source: str = "hash"
     rag_embedding_endpoint: str | None = None
@@ -101,6 +107,14 @@ class Settings(BaseSettings):
     @property
     def rag_jira_project_key_set(self) -> set[str]:
         return {item.strip() for item in self.rag_jira_project_keys.split(",") if item.strip()}
+
+    @property
+    def rag_sharepoint_allowed_path_prefix_set(self) -> set[str]:
+        return {
+            item.strip()
+            for item in self.rag_sharepoint_allowed_path_prefixes.split(",")
+            if item.strip()
+        }
 
     @property
     def budget_tenant_ceiling_map(self) -> dict[str, int]:

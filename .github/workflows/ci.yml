@@ -22,8 +22,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       SRG_TEST_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
+      SRG_TEST_REDIS_URL: redis://localhost:6379/0
       SRG_RAG_ALLOWED_CONNECTORS: filesystem,postgres
       SRG_RAG_POSTGRES_DSN: postgresql://postgres:postgres@localhost:5432/srg_test
       SRG_RAG_POSTGRES_TABLE: rag_chunks_ci
@@ -72,6 +82,16 @@ jobs:
             --threshold 0.8
       - name: Migration checks
         run: uv run python scripts/check_migration_v020rc1.py
+      - name: Webhook dead-letter replay smoke
+        run: |
+          mkdir -p artifacts/audit
+          cat > artifacts/audit/webhook_dead_letter.jsonl <<'JSON'
+          {"event_type":"policy_denied","endpoint_url":"https://example.invalid/webhook","idempotency_key":"orig-key","body":{"event_type":"policy_denied","payload":{"request_id":"req-ci"}}}
+          JSON
+          uv run python scripts/replay_webhook_dead_letter.py \
+            --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+            --dry-run \
+            --report-out artifacts/audit/webhook_replay_report.json
       - name: Governance benchmark gate
         run: |
           uv run python scripts/benchmark_runner.py \
@@ -98,5 +118,14 @@ jobs:
             --max-detection-delay-ms-p95 600 \
             --max-slo-burn-prediction-error-pct 10 \
             --max-false-positive-incident-rate 0.08
+      - name: Governance benchmark trend gate
+        run: |
+          uv run python scripts/check_benchmark_trend.py \
+            --current artifacts/benchmarks/governance/results_summary.json \
+            --baseline benchmarks/baselines/governance_enforce_redact_summary.json \
+            --max-latency-regression-pct 20 \
+            --max-leakage-regression-abs 0.002 \
+            --max-abs-cost-drift-regression-pct 3 \
+            --max-citation-drop-abs 0.1
       - name: Tests
         run: uv run pytest
