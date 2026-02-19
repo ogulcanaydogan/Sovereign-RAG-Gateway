@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.0-rc1 - 2026-02-19
+## v0.4.0 - 2026-02-19
 
 ### Runtime Governance Controls
 - Added response redaction in chat and streaming paths with separate `input_redaction_count` and `output_redaction_count` tracking.
@@ -38,7 +38,7 @@
 ### Infrastructure and CI
 - Added Terraform module documentation at `deploy/terraform/README.md`.
 - Added `terraform-validate` GitHub Actions workflow (`terraform fmt -check`, `terraform validate`).
-- Synced version defaults across app/chart/terraform release variables to `0.4.0-rc1`.
+- Synced version defaults across app/chart/terraform release variables to `0.4.0`.
 
 ## v0.3.0 - 2026-02-18
 
