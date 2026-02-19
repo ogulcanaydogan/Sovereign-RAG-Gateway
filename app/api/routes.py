@@ -33,6 +33,12 @@ def list_models(request: Request) -> dict[str, object]:
     return service.list_models()
 
 
+@router.get("/v1/traces/{request_id}")
+def get_trace(request: Request, request_id: str) -> dict[str, object]:
+    service: ChatService = request.app.state.chat_service
+    return service.get_trace(request_id)
+
+
 @router.post(
     "/v1/chat/completions",
     response_model=ChatCompletionResponse,

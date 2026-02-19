@@ -135,6 +135,40 @@
       "type": "array",
       "items": {"type": "string"}
     },
+    "trace_id": {"type": "string"},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ceiling", "used", "remaining", "window_seconds"],
+      "properties": {
+        "tenant_id": {"type": "string"},
+        "ceiling": {"type": "integer", "minimum": 0},
+        "used": {"type": "integer", "minimum": 0},
+        "remaining": {"type": "integer", "minimum": 0},
+        "window_seconds": {"type": "integer", "minimum": 1},
+        "utilization_pct": {"type": "number", "minimum": 0}
+      }
+    },
+    "webhook_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_type"],
+        "properties": {
+          "event_type": {"type": "string"},
+          "delivery_success_count": {"type": ["integer", "null"], "minimum": 0}
+        }
+      }
+    },
+    "input_redaction_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "output_redaction_count": {
+      "type": "integer",
+      "minimum": 0
+    },
     "payload_hash": {"type": "string"},
     "prev_hash": {"type": "string"},
     "created_at": {

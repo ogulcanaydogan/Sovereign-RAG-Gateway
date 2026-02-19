@@ -53,6 +53,22 @@ class Settings(BaseSettings):
     audit_log_path: Path = Path("artifacts/audit/events.jsonl")
     contracts_dir: Path = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "v1"
 
+    # Budget enforcement
+    budget_enabled: bool = False
+    budget_default_ceiling: int = 100_000
+    budget_window_seconds: int = 3600
+    budget_tenant_ceilings: str = ""
+
+    # Webhook notifications
+    webhook_enabled: bool = False
+    webhook_endpoints: str = ""
+    webhook_timeout_s: float = 5.0
+    webhook_max_retries: int = 1
+
+    # Telemetry / tracing
+    tracing_enabled: bool = False
+    tracing_max_traces: int = 1000
+
     @property
     def api_key_set(self) -> set[str]:
         return {item.strip() for item in self.api_keys.split(",") if item.strip()}
@@ -72,6 +88,21 @@ class Settings(BaseSettings):
     @property
     def rag_jira_project_key_set(self) -> set[str]:
         return {item.strip() for item in self.rag_jira_project_keys.split(",") if item.strip()}
+
+    @property
+    def budget_tenant_ceiling_map(self) -> dict[str, int]:
+        """Parse ``tenant:ceiling,tenant:ceiling`` into a dict."""
+        result: dict[str, int] = {}
+        for item in self.budget_tenant_ceilings.split(","):
+            item = item.strip()
+            if ":" not in item:
+                continue
+            tenant, ceiling_str = item.split(":", 1)
+            try:
+                result[tenant.strip()] = int(ceiling_str.strip())
+            except ValueError:
+                continue
+        return result
 
 
 @lru_cache

@@ -30,3 +30,11 @@ def test_confluence_spaces_parses_values() -> None:
 def test_jira_project_keys_parses_values() -> None:
     settings = Settings(rag_jira_project_keys="OPS, ENG,SEC")
     assert settings.rag_jira_project_key_set == {"OPS", "ENG", "SEC"}
+
+
+def test_budget_tenant_ceiling_map_parses_values() -> None:
+    settings = Settings(budget_tenant_ceilings="tenant-a:1000, tenant-b:2500,invalid")
+    assert settings.budget_tenant_ceiling_map == {
+        "tenant-a": 1000,
+        "tenant-b": 2500,
+    }

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import router
 from app.audit.writer import AuditWriter
+from app.budget.tracker import TokenBudgetTracker
 from app.config.settings import Settings, get_settings
 from app.core.errors import AppError, app_error_response, request_id_from_request
 from app.core.logging import configure_logging
@@ -32,6 +33,8 @@ from app.rag.registry import ConnectorRegistry
 from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
 from app.services.chat_service import ChatService
+from app.telemetry.tracing import SpanCollector
+from app.webhooks.dispatcher import WebhookDispatcher, WebhookEndpoint, WebhookEventType
 
 
 def _build_rag_embedding_generator(settings: Settings, embedding_dim: int) -> EmbeddingGenerator:
@@ -157,11 +160,51 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
     return registry
 
 
+def _build_budget_tracker(settings: Settings) -> TokenBudgetTracker | None:
+    if not settings.budget_enabled:
+        return None
+    return TokenBudgetTracker(
+        default_ceiling=settings.budget_default_ceiling,
+        window_seconds=settings.budget_window_seconds,
+        tenant_ceilings=settings.budget_tenant_ceiling_map or None,
+    )
+
+
+def _build_webhook_dispatcher(settings: Settings) -> WebhookDispatcher | None:
+    if not settings.webhook_enabled:
+        return None
+    endpoints: list[WebhookEndpoint] = []
+    if settings.webhook_endpoints:
+        for raw in json_mod.loads(settings.webhook_endpoints):
+            event_types = frozenset(
+                WebhookEventType(et) for et in raw.get("event_types", [])
+            ) or frozenset(WebhookEventType)
+            endpoints.append(
+                WebhookEndpoint(
+                    url=raw["url"],
+                    secret=raw.get("secret", ""),
+                    event_types=event_types,
+                    enabled=raw.get("enabled", True),
+                )
+            )
+    return WebhookDispatcher(
+        endpoints=endpoints,
+        timeout_s=settings.webhook_timeout_s,
+        max_retries=settings.webhook_max_retries,
+    )
+
+
+def _build_span_collector(settings: Settings) -> SpanCollector | None:
+    if not settings.tracing_enabled:
+        return None
+    return SpanCollector(max_traces=settings.tracing_max_traces)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.3.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.4.0-rc1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -230,6 +273,10 @@ def create_app() -> FastAPI:
         else StubProvider(embedding_dim=settings.rag_embedding_dim)
     )
 
+    budget_tracker = _build_budget_tracker(settings)
+    webhook_dispatcher = _build_webhook_dispatcher(settings)
+    span_collector = _build_span_collector(settings)
+
     chat_service = ChatService(
         settings=settings,
         policy_client=OPAClient(settings),
@@ -241,6 +288,9 @@ def create_app() -> FastAPI:
             default_k=settings.rag_default_top_k,
         ),
         provider_registry=provider_registry,
+        budget_tracker=budget_tracker,
+        webhook_dispatcher=webhook_dispatcher,
+        span_collector=span_collector,
     )
     app.state.chat_service = chat_service
 
