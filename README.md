@@ -727,16 +727,28 @@ SRG_BUDGET_ENABLED=true
 SRG_BUDGET_DEFAULT_CEILING=100000
 SRG_BUDGET_WINDOW_SECONDS=3600
 SRG_BUDGET_TENANT_CEILINGS="tenant-a:50000,tenant-b:250000"
+SRG_BUDGET_BACKEND=memory # memory|redis
+SRG_BUDGET_REDIS_URL=redis://redis:6379/0
+SRG_BUDGET_REDIS_PREFIX=srg:budget
+SRG_BUDGET_REDIS_TTL_SECONDS=7200
 
 # Webhook notifications
 SRG_WEBHOOK_ENABLED=true
 SRG_WEBHOOK_ENDPOINTS='[{"url":"https://hooks.example.com/srg","secret":"replace_me","event_types":["policy_denied","budget_exceeded","redaction_hit","provider_fallback","provider_error"]}]'
 SRG_WEBHOOK_TIMEOUT_S=5.0
 SRG_WEBHOOK_MAX_RETRIES=1
+SRG_WEBHOOK_BACKOFF_BASE_S=0.2
+SRG_WEBHOOK_BACKOFF_MAX_S=2.0
+SRG_WEBHOOK_DEAD_LETTER_PATH=artifacts/audit/webhook_dead_letter.jsonl
 
-# In-memory tracing diagnostics
+# Tracing diagnostics + OTLP export
 SRG_TRACING_ENABLED=true
 SRG_TRACING_MAX_TRACES=1000
+SRG_TRACING_OTLP_ENABLED=true
+SRG_TRACING_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
+SRG_TRACING_OTLP_TIMEOUT_S=2.0
+SRG_TRACING_OTLP_HEADERS='{"Authorization":"Bearer replace_me"}'
+SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
 ```
 
 ## Documentation
@@ -754,6 +766,7 @@ SRG_TRACING_MAX_TRACES=1000
 | [`docs/operations/compliance-control-mapping.md`](docs/operations/compliance-control-mapping.md) | Technical control-to-evidence mapping |
 | [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
+| [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Current release notes (v0.4.0-rc1) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |

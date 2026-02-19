@@ -10,6 +10,10 @@ def evaluate_thresholds(
     max_latency_p95_ms: float,
     max_cost_drift_pct: float,
     min_citation_presence_rate: float,
+    min_fault_attribution_accuracy: float | None = None,
+    max_detection_delay_ms_p95: float | None = None,
+    max_slo_burn_prediction_error_pct: float | None = None,
+    max_false_positive_incident_rate: float | None = None,
 ) -> list[str]:
     metrics = summary.get("metrics")
     if not isinstance(metrics, dict):
@@ -50,6 +54,35 @@ def evaluate_thresholds(
             "citation_presence_rate "
             f"{citation_presence:.4f} below min {min_citation_presence_rate:.4f}",
         )
+
+    if min_fault_attribution_accuracy is not None:
+        attribution_accuracy = _safe_float("fault_attribution_accuracy", 0.0)
+        if attribution_accuracy < min_fault_attribution_accuracy:
+            failures.append(
+                "fault_attribution_accuracy "
+                f"{attribution_accuracy:.4f} below min {min_fault_attribution_accuracy:.4f}",
+            )
+    if max_detection_delay_ms_p95 is not None:
+        detection_delay = _safe_float("detection_delay_ms_p95", 999999.0)
+        if detection_delay > max_detection_delay_ms_p95:
+            failures.append(
+                "detection_delay_ms_p95 "
+                f"{detection_delay:.2f} exceeds max {max_detection_delay_ms_p95:.2f}",
+            )
+    if max_slo_burn_prediction_error_pct is not None:
+        burn_error = abs(_safe_float("slo_burn_prediction_error_pct", 999999.0))
+        if burn_error > max_slo_burn_prediction_error_pct:
+            failures.append(
+                "abs(slo_burn_prediction_error_pct) "
+                f"{burn_error:.2f} exceeds max {max_slo_burn_prediction_error_pct:.2f}",
+            )
+    if max_false_positive_incident_rate is not None:
+        false_positive_rate = _safe_float("false_positive_incident_rate", 1.0)
+        if false_positive_rate > max_false_positive_incident_rate:
+            failures.append(
+                "false_positive_incident_rate "
+                f"{false_positive_rate:.4f} exceeds max {max_false_positive_incident_rate:.4f}",
+            )
     return failures
 
 
@@ -64,6 +97,10 @@ def main() -> None:
     parser.add_argument("--max-latency-p95-ms", type=float, default=250.0)
     parser.add_argument("--max-cost-drift-pct", type=float, default=5.0)
     parser.add_argument("--min-citation-presence-rate", type=float, default=0.5)
+    parser.add_argument("--min-fault-attribution-accuracy", type=float, default=None)
+    parser.add_argument("--max-detection-delay-ms-p95", type=float, default=None)
+    parser.add_argument("--max-slo-burn-prediction-error-pct", type=float, default=None)
+    parser.add_argument("--max-false-positive-incident-rate", type=float, default=None)
     args = parser.parse_args()
 
     summary_path = Path(args.summary)
@@ -77,6 +114,10 @@ def main() -> None:
         max_latency_p95_ms=args.max_latency_p95_ms,
         max_cost_drift_pct=args.max_cost_drift_pct,
         min_citation_presence_rate=args.min_citation_presence_rate,
+        min_fault_attribution_accuracy=args.min_fault_attribution_accuracy,
+        max_detection_delay_ms_p95=args.max_detection_delay_ms_p95,
+        max_slo_burn_prediction_error_pct=args.max_slo_burn_prediction_error_pct,
+        max_false_positive_incident_rate=args.max_false_positive_incident_rate,
     )
 
     if failures:

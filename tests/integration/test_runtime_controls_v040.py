@@ -181,3 +181,42 @@ def test_trace_endpoint_returns_required_spans(monkeypatch, tmp_path: Path) -> N
     body = trace_response.json()
     operations = {span["operation"] for span in body["spans"]}
     assert {"gateway.request", "policy.evaluate", "provider.call", "audit.persist"} <= operations
+
+
+def test_otlp_exporter_posts_trace_when_enabled(monkeypatch, tmp_path: Path) -> None:
+    captured: list[dict[str, object]] = []
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+    def fake_post(url, *, headers, json, timeout):  # type: ignore[no-untyped-def]
+        captured.append(
+            {"url": url, "headers": headers, "json": json, "timeout": timeout}
+        )
+        return _Response()
+
+    monkeypatch.setattr("app.telemetry.tracing.httpx.post", fake_post)
+
+    client = _build_client(
+        monkeypatch,
+        tmp_path,
+        extra_env={
+            "SRG_TRACING_ENABLED": "true",
+            "SRG_TRACING_OTLP_ENABLED": "true",
+            "SRG_TRACING_OTLP_ENDPOINT": "http://otel-collector:4318/v1/traces",
+            "SRG_TRACING_OTLP_TIMEOUT_S": "1.5",
+        },
+    )
+    response = client.post(
+        "/v1/chat/completions",
+        headers=_auth_headers(),
+        json={
+            "model": "gpt-4o-mini",
+            "messages": [{"role": "user", "content": "hello"}],
+            "max_tokens": 8,
+        },
+    )
+    assert response.status_code == 200
+    assert captured
+    assert captured[0]["url"] == "http://otel-collector:4318/v1/traces"

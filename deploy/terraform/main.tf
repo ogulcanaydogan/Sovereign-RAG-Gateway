@@ -282,5 +282,40 @@ resource "helm_release" "gateway" {
     value = var.srg_provider_name
   }
 
+  set {
+    name  = "env.budgetEnabled"
+    value = var.srg_budget_enabled
+  }
+
+  set {
+    name  = "env.budgetBackend"
+    value = var.srg_budget_backend
+  }
+
+  set_sensitive {
+    name  = "env.budgetRedisUrl"
+    value = var.srg_budget_redis_url
+  }
+
+  set {
+    name  = "env.webhookEnabled"
+    value = var.srg_webhook_enabled
+  }
+
+  set {
+    name  = "env.tracingEnabled"
+    value = var.srg_tracing_enabled
+  }
+
+  set {
+    name  = "env.tracingOtlpEnabled"
+    value = var.srg_tracing_otlp_enabled
+  }
+
+  set {
+    name  = "env.tracingOtlpEndpoint"
+    value = var.srg_tracing_otlp_endpoint
+  }
+
   depends_on = [aws_eks_node_group.main]
 }

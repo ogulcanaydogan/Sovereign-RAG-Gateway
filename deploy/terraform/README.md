@@ -25,6 +25,13 @@ This module provisions a production-oriented baseline for Sovereign RAG Gateway 
 | `gateway_image_tag` | `v0.4.0-rc1` | Gateway image tag |
 | `gateway_replicas` | `2` | Gateway replica count |
 | `public_api_access` | `false` | Public EKS API endpoint access |
+| `srg_budget_enabled` | `false` | Enables budget enforcement in gateway |
+| `srg_budget_backend` | `memory` | Budget backend (`memory` or `redis`) |
+| `srg_budget_redis_url` | `""` | Redis DSN used when backend is `redis` |
+| `srg_webhook_enabled` | `false` | Enables webhook notifications |
+| `srg_tracing_enabled` | `false` | Enables request trace collection |
+| `srg_tracing_otlp_enabled` | `false` | Enables OTLP exporter |
+| `srg_tracing_otlp_endpoint` | `""` | OTLP collector endpoint |
 
 ## Minimal `terraform.tfvars` Example
 
@@ -36,6 +43,10 @@ srg_api_keys   = "prod-key-1,prod-key-2"
 gateway_image_tag    = "v0.4.0-rc1"
 gateway_chart_version = "0.4.0-rc1"
 gateway_replicas     = 3
+srg_budget_enabled   = true
+srg_budget_backend   = "memory"
+srg_webhook_enabled  = true
+srg_tracing_enabled  = true
 
 tags = {
   Project     = "sovereign-rag-gateway"

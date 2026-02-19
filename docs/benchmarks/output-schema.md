@@ -37,7 +37,12 @@
     "latency_ms_p50": 0.0,
     "latency_ms_p95": 0.0,
     "latency_ms_p99": 0.0,
-    "cost_drift_pct": 0.0
+    "cost_drift_pct": 0.0,
+    "fault_type": "none",
+    "fault_attribution_accuracy": 0.0,
+    "detection_delay_ms_p95": 0.0,
+    "slo_burn_prediction_error_pct": 0.0,
+    "false_positive_incident_rate": 0.0
   }
 }
 ```
@@ -63,6 +68,11 @@ Columns:
 - `leakage_detected`
 - `has_citations`
 - `citation_integrity_pass`
+- `fault_type`
+- `detection_delay_ms`
+- `attribution_correct`
+- `slo_burn_prediction_error_pct`
+- `incident_false_positive`
 
 ## File: `policy_eval.csv`
 Columns:

@@ -84,5 +84,19 @@ jobs:
             --max-latency-p95-ms 250 \
             --max-cost-drift-pct 5 \
             --min-citation-presence-rate 0.5
+          uv run python scripts/benchmark_runner.py \
+            --scenario provider_429_storm \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out artifacts/benchmarks/faults/provider_429_storm
+          uv run python scripts/check_benchmark_thresholds.py \
+            --summary artifacts/benchmarks/faults/provider_429_storm/results_summary.json \
+            --max-leakage-rate 0.01 \
+            --max-latency-p95-ms 400 \
+            --max-cost-drift-pct 15 \
+            --min-citation-presence-rate 0.0 \
+            --min-fault-attribution-accuracy 0.9 \
+            --max-detection-delay-ms-p95 600 \
+            --max-slo-burn-prediction-error-pct 10 \
+            --max-false-positive-incident-rate 0.08
       - name: Tests
         run: uv run pytest

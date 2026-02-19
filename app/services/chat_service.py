@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi import Request
 
 from app.audit.writer import AuditValidationError, AuditWriter
-from app.budget.tracker import BudgetExceededError, TokenBudgetTracker
+from app.budget.tracker import BudgetBackendError, BudgetExceededError, BudgetTracker
 from app.config.settings import Settings
 from app.core.errors import AppError
 from app.metrics import record_request
@@ -75,7 +75,7 @@ class ChatService:
         audit_writer: AuditWriter,
         retrieval_orchestrator: RetrievalOrchestrator | None = None,
         provider_registry: ProviderRegistry | None = None,
-        budget_tracker: TokenBudgetTracker | None = None,
+        budget_tracker: BudgetTracker | None = None,
         webhook_dispatcher: WebhookDispatcher | None = None,
         span_collector: SpanCollector | None = None,
     ):
@@ -1295,8 +1295,27 @@ class ChatService:
 
         try:
             self._budget_tracker.check(tenant_id, requested_tokens)
+        except BudgetBackendError as exc:
+            raise AppError(
+                503,
+                "budget_backend_unavailable",
+                "policy",
+                "Budget backend unavailable",
+            ) from exc
         except BudgetExceededError as exc:
-            budget_summary = self._budget_tracker.summary(tenant_id)
+            try:
+                budget_summary = self._budget_tracker.summary(tenant_id)
+            except BudgetBackendError:
+                budget_summary = {
+                    "tenant_id": tenant_id,
+                    "window_seconds": exc.window_seconds,
+                    "ceiling": exc.ceiling,
+                    "used": exc.used,
+                    "remaining": max(0, exc.ceiling - exc.used),
+                    "utilization_pct": round(exc.used / exc.ceiling * 100, 2)
+                    if exc.ceiling > 0
+                    else 0.0,
+                }
             self._queue_webhook_event(
                 event_type=WebhookEventType.BUDGET_EXCEEDED,
                 payload={
@@ -1337,7 +1356,15 @@ class ChatService:
                 ),
             ) from exc
 
-        return self._budget_tracker.summary(tenant_id)
+        try:
+            return self._budget_tracker.summary(tenant_id)
+        except BudgetBackendError as exc:
+            raise AppError(
+                503,
+                "budget_backend_unavailable",
+                "policy",
+                "Budget backend unavailable",
+            ) from exc
 
     def _record_budget_usage(
         self,
@@ -1347,8 +1374,19 @@ class ChatService:
     ) -> dict[str, object] | None:
         if self._budget_tracker is None:
             return current_summary
-        self._budget_tracker.record(tenant_id, used_tokens)
-        return self._budget_tracker.summary(tenant_id)
+        try:
+            self._budget_tracker.record(tenant_id, used_tokens)
+            return self._budget_tracker.summary(tenant_id)
+        except BudgetBackendError as exc:
+            logger.warning(
+                "budget_usage_record_failed",
+                extra={
+                    "tenant_id": tenant_id,
+                    "used_tokens": used_tokens,
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+            )
+            return current_summary
 
     def _queue_webhook_event(
         self,

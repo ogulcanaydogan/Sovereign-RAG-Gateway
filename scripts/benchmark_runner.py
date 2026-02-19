@@ -15,6 +15,12 @@ class ScenarioConfig:
     latency_ms: int
     leakage_rate: float
     cost_multiplier: float
+    status_code: int = 200
+    fault_type: str = "none"
+    detection_delay_ms: float = 0.0
+    attribution_accuracy: float = 1.0
+    burn_prediction_error_pct: float = 2.0
+    incident_false_positive_rate: float = 0.01
 
 
 SCENARIOS: dict[str, ScenarioConfig] = {
@@ -38,6 +44,45 @@ SCENARIOS: dict[str, ScenarioConfig] = {
         latency_ms=145,
         leakage_rate=0.004,
         cost_multiplier=1.00,
+    ),
+    "policy_outage_fail_closed": ScenarioConfig(
+        policy_decision="deny",
+        redaction_count=0,
+        latency_ms=180,
+        leakage_rate=0.0,
+        cost_multiplier=0.95,
+        status_code=503,
+        fault_type="policy_outage",
+        detection_delay_ms=420.0,
+        attribution_accuracy=0.97,
+        burn_prediction_error_pct=4.5,
+        incident_false_positive_rate=0.02,
+    ),
+    "provider_429_storm": ScenarioConfig(
+        policy_decision="allow",
+        redaction_count=0,
+        latency_ms=320,
+        leakage_rate=0.004,
+        cost_multiplier=1.12,
+        status_code=429,
+        fault_type="provider_429",
+        detection_delay_ms=260.0,
+        attribution_accuracy=0.95,
+        burn_prediction_error_pct=3.2,
+        incident_false_positive_rate=0.03,
+    ),
+    "connector_timeout": ScenarioConfig(
+        policy_decision="allow",
+        redaction_count=1,
+        latency_ms=560,
+        leakage_rate=0.004,
+        cost_multiplier=1.05,
+        status_code=504,
+        fault_type="retrieval_timeout",
+        detection_delay_ms=310.0,
+        attribution_accuracy=0.93,
+        burn_prediction_error_pct=4.0,
+        incident_false_positive_rate=0.04,
     ),
 }
 
@@ -93,7 +138,7 @@ def run_benchmark(
         tokens_in = max(len(text.split()), 1)
         tokens_out = 20
         cost = round((tokens_in + tokens_out) * 0.000001 * config.cost_multiplier, 8)
-        has_citations = bool(row.get("is_rag", False))
+        has_citations = bool(row.get("is_rag", False)) and config.status_code == 200
 
         csv_rows.append(
             {
@@ -108,14 +153,22 @@ def run_benchmark(
                 "redaction_count": config.redaction_count,
                 "provider": "stub",
                 "model": "gpt-4o-mini",
-                "status_code": 200,
+                "status_code": config.status_code,
                 "latency_ms": config.latency_ms,
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
                 "cost_usd": cost,
-                "leakage_detected": scenario != "enforce_redact",
+                "leakage_detected": scenario not in {
+                    "enforce_redact",
+                    "policy_outage_fail_closed",
+                },
                 "has_citations": has_citations,
                 "citation_integrity_pass": has_citations,
+                "fault_type": config.fault_type,
+                "detection_delay_ms": config.detection_delay_ms,
+                "attribution_correct": config.attribution_accuracy >= 0.95,
+                "slo_burn_prediction_error_pct": config.burn_prediction_error_pct,
+                "incident_false_positive": config.incident_false_positive_rate > 0.03,
             }
         )
 
@@ -126,6 +179,17 @@ def run_benchmark(
 
     total_requests = len(csv_rows)
     errors_total = 0
+    for item in csv_rows:
+        raw_status = item.get("status_code", 200)
+        if isinstance(raw_status, int):
+            status_code = raw_status
+        else:
+            try:
+                status_code = int(str(raw_status))
+            except ValueError:
+                status_code = 500
+        if status_code >= 400:
+            errors_total += 1
     p50 = float(config.latency_ms)
     p95 = float(config.latency_ms)
     p99 = float(config.latency_ms)
@@ -184,6 +248,11 @@ def run_benchmark(
             "cost_drift_pct": round((config.cost_multiplier - 1.0) * 100, 2),
             "citation_presence_rate": citation_presence_rate,
             "groundedness_score": 0.75,
+            "fault_type": config.fault_type,
+            "fault_attribution_accuracy": config.attribution_accuracy,
+            "detection_delay_ms_p95": config.detection_delay_ms,
+            "slo_burn_prediction_error_pct": config.burn_prediction_error_pct,
+            "false_positive_incident_rate": config.incident_false_positive_rate,
         },
     }
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")

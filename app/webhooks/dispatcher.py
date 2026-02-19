@@ -23,6 +23,7 @@ header containing an HMAC-SHA256 of the JSON body, keyed by the
 webhook secret.
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -30,8 +31,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from time import perf_counter
 from typing import Any
+from uuid import uuid4
 
 import httpx
 
@@ -69,6 +72,8 @@ class WebhookDeliveryResult:
     success: bool = False
     error: str | None = None
     duration_ms: float = 0.0
+    attempt_count: int = 1
+    idempotency_key: str = ""
 
 
 class WebhookDispatcher:
@@ -89,10 +94,16 @@ class WebhookDispatcher:
         endpoints: list[WebhookEndpoint] | None = None,
         timeout_s: float = 5.0,
         max_retries: int = 1,
+        backoff_base_s: float = 0.2,
+        backoff_max_s: float = 2.0,
+        dead_letter_path: Path | None = None,
     ) -> None:
         self._endpoints = list(endpoints) if endpoints else []
         self._timeout_s = timeout_s
         self._max_retries = max_retries
+        self._backoff_base_s = max(backoff_base_s, 0.0)
+        self._backoff_max_s = max(backoff_max_s, self._backoff_base_s)
+        self._dead_letter_path = dead_letter_path
         self._delivery_log: list[WebhookDeliveryResult] = []
         self._max_log_entries = 500
 
@@ -121,6 +132,7 @@ class WebhookDispatcher:
         """
         results: list[WebhookDeliveryResult] = []
         envelope = {
+            "event_id": f"evt-{uuid4().hex}",
             "event_type": event_type.value,
             "timestamp": datetime.now(UTC).isoformat(),
             "gateway_version": GATEWAY_VERSION,
@@ -139,6 +151,13 @@ class WebhookDispatcher:
                 body=body,
                 event_type=event_type.value,
             )
+            if not result.success:
+                self._write_dead_letter(
+                    endpoint=endpoint,
+                    event_type=event_type.value,
+                    body=body,
+                    result=result,
+                )
             results.append(result)
             self._record_delivery(result)
 
@@ -151,9 +170,13 @@ class WebhookDispatcher:
         event_type: str,
     ) -> WebhookDeliveryResult:
         """POST the webhook body to an endpoint with retry."""
+        idempotency_key = hashlib.sha256(
+            f"{endpoint.url}:{body}".encode()
+        ).hexdigest()
         headers: dict[str, str] = {
             "Content-Type": "application/json",
             "User-Agent": f"SovereignRAGGateway/{GATEWAY_VERSION}",
+            "X-SRG-Idempotency-Key": idempotency_key,
         }
         if endpoint.secret:
             signature = hmac.new(
@@ -171,12 +194,25 @@ class WebhookDispatcher:
                     resp = await client.post(
                         endpoint.url, content=body, headers=headers
                     )
+                    duration_ms = round((perf_counter() - started) * 1000, 3)
+                    success = 200 <= resp.status_code < 300
+                    retryable = resp.status_code in {429, 500, 502, 503, 504}
+                    if not success and attempt < self._max_retries and retryable:
+                        await asyncio.sleep(
+                            min(
+                                self._backoff_base_s * (2**attempt),
+                                self._backoff_max_s,
+                            )
+                        )
+                        continue
                     return WebhookDeliveryResult(
                         endpoint_url=endpoint.url,
                         event_type=event_type,
                         status_code=resp.status_code,
-                        success=200 <= resp.status_code < 300,
-                        duration_ms=round((perf_counter() - started) * 1000, 3),
+                        success=success,
+                        duration_ms=duration_ms,
+                        attempt_count=attempt + 1,
+                        idempotency_key=idempotency_key,
                     )
             except httpx.HTTPError as exc:
                 last_error = f"attempt {attempt + 1}: {type(exc).__name__}: {exc}"
@@ -188,6 +224,13 @@ class WebhookDispatcher:
                         "error": str(exc),
                     },
                 )
+                if attempt < self._max_retries:
+                    await asyncio.sleep(
+                        min(
+                            self._backoff_base_s * (2**attempt),
+                            self._backoff_max_s,
+                        )
+                    )
 
         return WebhookDeliveryResult(
             endpoint_url=endpoint.url,
@@ -195,6 +238,8 @@ class WebhookDispatcher:
             success=False,
             error=last_error,
             duration_ms=0.0,
+            attempt_count=self._max_retries + 1,
+            idempotency_key=idempotency_key,
         )
 
     def _record_delivery(self, result: WebhookDeliveryResult) -> None:
@@ -205,3 +250,36 @@ class WebhookDispatcher:
     def recent_deliveries(self, limit: int = 20) -> list[WebhookDeliveryResult]:
         """Return the most recent delivery results."""
         return list(reversed(self._delivery_log[-limit:]))
+
+    def _write_dead_letter(
+        self,
+        endpoint: WebhookEndpoint,
+        event_type: str,
+        body: str,
+        result: WebhookDeliveryResult,
+    ) -> None:
+        if self._dead_letter_path is None:
+            return
+        record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "event_type": event_type,
+            "endpoint_url": endpoint.url,
+            "status_code": result.status_code,
+            "error": result.error,
+            "attempt_count": result.attempt_count,
+            "idempotency_key": result.idempotency_key,
+            "body": json.loads(body),
+        }
+        try:
+            self._dead_letter_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._dead_letter_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record, ensure_ascii=True))
+                fh.write("\n")
+        except OSError as exc:  # pragma: no cover - runtime guard
+            logger.warning(
+                "webhook_dead_letter_write_failed",
+                extra={
+                    "path": str(self._dead_letter_path),
+                    "error": str(exc),
+                },
+            )

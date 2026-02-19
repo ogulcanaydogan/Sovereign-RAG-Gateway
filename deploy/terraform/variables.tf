@@ -118,6 +118,49 @@ variable "srg_provider_name" {
   default     = "stub"
 }
 
+variable "srg_budget_enabled" {
+  description = "Enable in-path token budget enforcement"
+  type        = bool
+  default     = false
+}
+
+variable "srg_budget_backend" {
+  description = "Budget backend implementation (memory or redis)"
+  type        = string
+  default     = "memory"
+}
+
+variable "srg_budget_redis_url" {
+  description = "Redis URL for distributed budget tracking (when backend=redis)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "srg_webhook_enabled" {
+  description = "Enable webhook notifications"
+  type        = bool
+  default     = false
+}
+
+variable "srg_tracing_enabled" {
+  description = "Enable request-level tracing"
+  type        = bool
+  default     = false
+}
+
+variable "srg_tracing_otlp_enabled" {
+  description = "Enable OTLP/HTTP exporter for traces"
+  type        = bool
+  default     = false
+}
+
+variable "srg_tracing_otlp_endpoint" {
+  description = "OTLP/HTTP trace endpoint (e.g. http://otel-collector:4318/v1/traces)"
+  type        = string
+  default     = ""
+}
+
 # ---------------------------------------------------------------------------
 # Tagging
 # ---------------------------------------------------------------------------
