@@ -77,19 +77,22 @@ if [[ "$HTTP_CODE" != "200" ]]; then
 fi
 
 REQUEST_ID="$(awk -F': ' 'tolower($1)=="x-request-id" {gsub(/\r/,"",$2); print $2}' "$HEADER_FILE" | tail -n1)"
+REQUEST_ID="$(echo "$REQUEST_ID" | tr -d '\r' | tr -d '[:space:]')"
 if [[ -z "$REQUEST_ID" ]]; then
   echo "Missing x-request-id in response headers"
   exit 1
 fi
 
 TRACE_FILE="$(mktemp)"
-curl -sS "http://127.0.0.1:18080/v1/traces/$REQUEST_ID" \
-  -H 'Authorization: Bearer test-key' \
-  -H 'x-srg-tenant-id: tenant-a' \
-  -H 'x-srg-user-id: user-1' \
-  -H 'x-srg-classification: public' >"$TRACE_FILE"
+TRACE_OK=0
+for _attempt in 1 2 3 4 5; do
+  curl -sS "http://127.0.0.1:18080/v1/traces/$REQUEST_ID" \
+    -H 'Authorization: Bearer test-key' \
+    -H 'x-srg-tenant-id: tenant-a' \
+    -H 'x-srg-user-id: user-1' \
+    -H 'x-srg-classification: public' >"$TRACE_FILE"
 
-python3 - "$TRACE_FILE" <<'PY'
+  if python3 - "$TRACE_FILE" <<'PY'
 import json
 import sys
 
@@ -99,8 +102,20 @@ ops = {span.get("operation") for span in spans if isinstance(span, dict)}
 required = {"gateway.request", "policy.evaluate", "redaction.scan", "provider.call", "audit.persist"}
 missing = sorted(required - ops)
 if missing:
-    raise SystemExit(f"missing required spans: {missing}")
+    raise SystemExit(1)
 PY
+  then
+    TRACE_OK=1
+    break
+  fi
+  sleep 1
+done
+
+if [[ "$TRACE_OK" != "1" ]]; then
+  echo "missing required spans for request_id=$REQUEST_ID"
+  cat "$TRACE_FILE"
+  exit 1
+fi
 
 BUDGET_BODY="$(mktemp)"
 BUDGET_CODE="$(curl -sS -o "$BUDGET_BODY" -w '%{http_code}' \
