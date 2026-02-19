@@ -14,7 +14,7 @@ Webhook payload is a JSON envelope:
     {
         "event_type": "policy_denied",
         "timestamp": "2026-02-19T12:00:00+00:00",
-        "gateway_version": "0.4.0-rc1",
+        "gateway_version": "0.4.0",
         "payload": { ... audit event fields ... }
     }
 
@@ -40,7 +40,7 @@ import httpx
 
 logger = logging.getLogger("srg.webhooks")
 
-GATEWAY_VERSION = "0.4.0-rc1"
+GATEWAY_VERSION = "0.4.0"
 
 
 class WebhookEventType(Enum):

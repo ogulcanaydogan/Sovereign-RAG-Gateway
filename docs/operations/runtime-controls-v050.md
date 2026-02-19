@@ -1,6 +1,6 @@
 # Runtime Controls (v0.5 Foundation)
 
-This runbook captures the production-oriented controls added after `v0.4.0-rc1`.
+This runbook captures the production-oriented controls added after `v0.4.0`.
 
 ## 1) Distributed Token Budgets (Redis Backend)
 

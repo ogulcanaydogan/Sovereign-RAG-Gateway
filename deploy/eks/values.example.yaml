@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/ogulcanaydogan/sovereign-rag-gateway
-  tag: v0.4.0-rc1
+  tag: v0.4.0
   pullPolicy: IfNotPresent
 
 service:

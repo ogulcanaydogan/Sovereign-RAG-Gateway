@@ -2,7 +2,7 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-![Version](https://img.shields.io/badge/version-0.4.0--rc1-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.4.0-rc1 |
+| Current version | 0.4.0 |
 
 ### Quality and Contracts
 
@@ -768,7 +768,8 @@ SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Current release notes (v0.4.0-rc1) |
+| [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md) | Current release notes (v0.4.0) |
+| [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Previous release notes (v0.3.0) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Previous release notes (v0.2.0) |
