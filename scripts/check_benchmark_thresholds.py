@@ -16,10 +16,22 @@ def evaluate_thresholds(
         return ["results_summary.json missing metrics object"]
 
     failures: list[str] = []
-    leakage_rate = float(metrics.get("leakage_rate", 1.0))
-    latency_p95 = float(metrics.get("latency_ms_p95", 999999.0))
-    cost_drift_pct = abs(float(metrics.get("cost_drift_pct", 999999.0)))
-    citation_presence = float(metrics.get("citation_presence_rate", 0.0))
+
+    def _safe_float(key: str, default: float) -> float:
+        raw = metrics.get(key)
+        if raw is None or raw == "n/a":
+            failures.append(f"{key} is missing or null in metrics (got {raw!r})")
+            return default
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            failures.append(f"{key} is not numeric (got {raw!r})")
+            return default
+
+    leakage_rate = _safe_float("leakage_rate", 1.0)
+    latency_p95 = _safe_float("latency_ms_p95", 999999.0)
+    cost_drift_pct = abs(_safe_float("cost_drift_pct", 999999.0))
+    citation_presence = _safe_float("citation_presence_rate", 0.0)
 
     if leakage_rate > max_leakage_rate:
         failures.append(

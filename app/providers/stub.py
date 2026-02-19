@@ -67,7 +67,7 @@ class StubProvider:
         created_raw = response.get("created")
         created = (
             int(created_raw)
-            if isinstance(created_raw, int | float | str)
+            if isinstance(created_raw, (int, float, str))
             else int(time())
         )
         response_id = str(response.get("id", f"chatcmpl-{uuid4().hex}"))

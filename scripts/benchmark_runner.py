@@ -130,12 +130,16 @@ def run_benchmark(
     p95 = float(config.latency_ms)
     p99 = float(config.latency_ms)
 
+    rag_expected_total = sum(1 for item in csv_rows if bool(item.get("is_rag", False)))
     citations_total = sum(1 for item in csv_rows if bool(item["has_citations"]))
     citation_integrity_total = sum(
         1 for item in csv_rows if bool(item["citation_integrity_pass"])
     )
     citation_integrity_rate = (
-        (citation_integrity_total / citations_total) if citations_total > 0 else 1.0
+        (citation_integrity_total / citations_total) if citations_total > 0 else 0.0
+    )
+    citation_presence_rate = (
+        (citations_total / rag_expected_total) if rag_expected_total > 0 else 0.0
     )
 
     summary = {
@@ -178,7 +182,7 @@ def run_benchmark(
             "latency_ms_p95": p95,
             "latency_ms_p99": p99,
             "cost_drift_pct": round((config.cost_multiplier - 1.0) * 100, 2),
-            "citation_presence_rate": citation_integrity_rate,
+            "citation_presence_rate": citation_presence_rate,
             "groundedness_score": 0.75,
         },
     }

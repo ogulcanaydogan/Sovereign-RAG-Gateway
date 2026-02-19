@@ -79,7 +79,14 @@ def _build_provider_registry(settings: Settings) -> ProviderRegistry:
             capabilities_cfg = (
                 raw_capabilities_cfg if isinstance(raw_capabilities_cfg, dict) else {}
             )
-            model_prefixes = tuple(str(item) for item in capabilities_cfg.get("model_prefixes", []))
+            raw_prefixes = capabilities_cfg.get("model_prefixes", [])
+            if isinstance(raw_prefixes, str):
+                raw_prefixes = [raw_prefixes]
+            model_prefixes = tuple(
+                str(item).strip()
+                for item in raw_prefixes
+                if isinstance(item, str) and str(item).strip()
+            )
             provider: ChatProvider
             capabilities = ProviderCapabilities(
                 chat=bool(capabilities_cfg.get("chat", True)),

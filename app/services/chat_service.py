@@ -364,186 +364,203 @@ class ChatService:
             chunk_id = ""
             chunk_created = int(datetime.now(UTC).timestamp())
             policy_decision_label = self._policy_decision_label(decision)
+            stream_error: BaseException | None = None
+            stream_status_code = 200
 
-            if first_chunk is not None:
-                chunk_id = str(first_chunk.get("id", f"chatcmpl-{uuid4().hex}"))
-                chunk_created = self._coerce_int(first_chunk.get("created"), chunk_created)
-                choices = first_chunk.get("choices")
-                if isinstance(choices, list):
-                    for choice in choices:
-                        if not isinstance(choice, dict):
-                            continue
-                        delta = choice.get("delta", {})
-                        if isinstance(delta, dict):
-                            content = delta.get("content")
-                            if isinstance(content, str) and content:
-                                completion_parts.append(content)
-                            if "citations" in delta:
-                                saw_citations = True
-                        finish_reason = choice.get("finish_reason")
-                        if isinstance(finish_reason, str) and finish_reason:
-                            saw_finish = True
-                usage = first_chunk.get("usage")
-                if isinstance(usage, dict):
-                    prompt_raw = usage.get("prompt_tokens")
-                    completion_raw = usage.get("completion_tokens")
-                    if isinstance(prompt_raw, int):
-                        usage_prompt_tokens = prompt_raw
-                    if isinstance(completion_raw, int):
-                        usage_completion_tokens = completion_raw
-                yield self._sse_event(first_chunk)
-
-            async for chunk in provider_stream:
-                if chunk_id == "":
-                    chunk_id = str(chunk.get("id", f"chatcmpl-{uuid4().hex}"))
-                chunk_created = self._coerce_int(chunk.get("created"), chunk_created)
-
-                choices = chunk.get("choices")
-                if isinstance(choices, list):
-                    for choice in choices:
-                        if not isinstance(choice, dict):
-                            continue
-                        delta = choice.get("delta", {})
-                        if isinstance(delta, dict):
-                            content = delta.get("content")
-                            if isinstance(content, str) and content:
-                                completion_parts.append(content)
-                            if "citations" in delta:
-                                saw_citations = True
-                        finish_reason = choice.get("finish_reason")
-                        if isinstance(finish_reason, str) and finish_reason:
-                            saw_finish = True
-
-                usage = chunk.get("usage")
-                if isinstance(usage, dict):
-                    prompt_raw = usage.get("prompt_tokens")
-                    completion_raw = usage.get("completion_tokens")
-                    if isinstance(prompt_raw, int):
-                        usage_prompt_tokens = prompt_raw
-                    if isinstance(completion_raw, int):
-                        usage_completion_tokens = completion_raw
-
-                yield self._sse_event(chunk)
-
-            if citations and not saw_citations:
-                yield self._sse_event(
-                    {
-                        "id": chunk_id or f"chatcmpl-{uuid4().hex}",
-                        "object": "chat.completion.chunk",
-                        "created": chunk_created,
-                        "model": selected_model,
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {
-                                    "citations": [citation.model_dump() for citation in citations]
-                                },
-                                "finish_reason": None,
-                            }
-                        ],
-                    }
-                )
-
-            if not saw_finish:
-                yield self._sse_event(
-                    {
-                        "id": chunk_id or f"chatcmpl-{uuid4().hex}",
-                        "object": "chat.completion.chunk",
-                        "created": chunk_created,
-                        "model": selected_model,
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {},
-                                "finish_reason": "stop",
-                            }
-                        ],
-                    }
-                )
-
-            yield "data: [DONE]\n\n"
-
-            if usage_completion_tokens == 0:
-                usage_completion_tokens = len("".join(completion_parts).split())
-            provider_response_hash = self._hash_value(
-                {
-                    "completion_text": "".join(completion_parts),
-                    "prompt_tokens": usage_prompt_tokens,
-                    "completion_tokens": usage_completion_tokens,
-                    "chunk_id": chunk_id,
-                    "model": selected_model,
-                }
-            )
-
-            cost_usd = round((usage_prompt_tokens + usage_completion_tokens) * 0.000001, 8)
-            audit_event = self._build_audit_event(
-                request_id=request_id,
-                tenant_id=tenant_id,
-                user_id=user_id,
-                endpoint=str(request.url.path),
-                requested_model=payload.model,
-                selected_model=selected_model,
-                provider=routed_provider,
-                decision=decision,
-                policy_decision_label=policy_decision_label,
-                redaction_count=redaction_count,
-                request_payload_hash=request_payload_hash,
-                redacted_payload_hash=redacted_payload_hash,
-                provider_request_hash=provider_request_hash,
-                provider_response_hash=provider_response_hash,
-                retrieval_citations=citations,
-                streaming=True,
-                tokens_in=usage_prompt_tokens,
-                tokens_out=usage_completion_tokens,
-                cost_usd=cost_usd,
-                provider_attempts=provider_attempts,
-                fallback_chain=fallback_chain,
-            )
             try:
-                self._audit_writer.write_event(audit_event)
-            except AuditValidationError as exc:
-                logger.warning(
-                    "audit_write_failed_stream",
-                    extra={
-                        "request_id": request_id,
-                        "provider": routed_provider,
-                        "error": str(exc),
-                    },
+                if first_chunk is not None:
+                    chunk_id = str(first_chunk.get("id", f"chatcmpl-{uuid4().hex}"))
+                    chunk_created = self._coerce_int(first_chunk.get("created"), chunk_created)
+                    choices = first_chunk.get("choices")
+                    if isinstance(choices, list):
+                        for choice in choices:
+                            if not isinstance(choice, dict):
+                                continue
+                            delta = choice.get("delta", {})
+                            if isinstance(delta, dict):
+                                content = delta.get("content")
+                                if isinstance(content, str) and content:
+                                    completion_parts.append(content)
+                                if "citations" in delta:
+                                    saw_citations = True
+                            finish_reason = choice.get("finish_reason")
+                            if isinstance(finish_reason, str) and finish_reason:
+                                saw_finish = True
+                    usage = first_chunk.get("usage")
+                    if isinstance(usage, dict):
+                        prompt_raw = usage.get("prompt_tokens")
+                        completion_raw = usage.get("completion_tokens")
+                        if isinstance(prompt_raw, int):
+                            usage_prompt_tokens = prompt_raw
+                        if isinstance(completion_raw, int):
+                            usage_completion_tokens = completion_raw
+                    yield self._sse_event(first_chunk)
+
+                async for chunk in provider_stream:
+                    if chunk_id == "":
+                        chunk_id = str(chunk.get("id", f"chatcmpl-{uuid4().hex}"))
+                    chunk_created = self._coerce_int(chunk.get("created"), chunk_created)
+
+                    choices = chunk.get("choices")
+                    if isinstance(choices, list):
+                        for choice in choices:
+                            if not isinstance(choice, dict):
+                                continue
+                            delta = choice.get("delta", {})
+                            if isinstance(delta, dict):
+                                content = delta.get("content")
+                                if isinstance(content, str) and content:
+                                    completion_parts.append(content)
+                                if "citations" in delta:
+                                    saw_citations = True
+                            finish_reason = choice.get("finish_reason")
+                            if isinstance(finish_reason, str) and finish_reason:
+                                saw_finish = True
+
+                    usage = chunk.get("usage")
+                    if isinstance(usage, dict):
+                        prompt_raw = usage.get("prompt_tokens")
+                        completion_raw = usage.get("completion_tokens")
+                        if isinstance(prompt_raw, int):
+                            usage_prompt_tokens = prompt_raw
+                        if isinstance(completion_raw, int):
+                            usage_completion_tokens = completion_raw
+
+                    yield self._sse_event(chunk)
+
+                if citations and not saw_citations:
+                    yield self._sse_event(
+                        {
+                            "id": chunk_id or f"chatcmpl-{uuid4().hex}",
+                            "object": "chat.completion.chunk",
+                            "created": chunk_created,
+                            "model": selected_model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "citations": [
+                                            citation.model_dump() for citation in citations
+                                        ]
+                                    },
+                                    "finish_reason": None,
+                                }
+                            ],
+                        }
+                    )
+
+                if not saw_finish:
+                    yield self._sse_event(
+                        {
+                            "id": chunk_id or f"chatcmpl-{uuid4().hex}",
+                            "object": "chat.completion.chunk",
+                            "created": chunk_created,
+                            "model": selected_model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {},
+                                    "finish_reason": "stop",
+                                }
+                            ],
+                        }
+                    )
+
+                yield "data: [DONE]\n\n"
+
+            except BaseException as exc:
+                stream_error = exc
+                stream_status_code = 499
+                raise
+            finally:
+                if usage_completion_tokens == 0:
+                    usage_completion_tokens = len("".join(completion_parts).split())
+                provider_response_hash = self._hash_value(
+                    {
+                        "completion_text": "".join(completion_parts),
+                        "prompt_tokens": usage_prompt_tokens,
+                        "completion_tokens": usage_completion_tokens,
+                        "chunk_id": chunk_id,
+                        "model": selected_model,
+                    }
                 )
 
-            latency_ms = int((perf_counter() - started) * 1000)
-            logger.info(
-                "chat_stream_completed",
-                extra={
-                    "request_id": request_id,
-                    "tenant_id": tenant_id,
-                    "user_id": user_id,
-                    "model": selected_model,
-                    "policy_decision": policy_decision_label,
-                    "redaction_count": redaction_count,
-                    "provider": routed_provider,
-                    "latency_ms": latency_ms,
-                    "token_in": usage_prompt_tokens,
-                    "token_out": usage_completion_tokens,
-                    "cost_usd": cost_usd,
-                    "provider_attempts": provider_attempts,
-                    "fallback_chain": fallback_chain,
-                },
-            )
-            if self._settings.metrics_enabled:
-                record_request(
+                cost_usd = round(
+                    (usage_prompt_tokens + usage_completion_tokens) * 0.000001, 8
+                )
+                audit_event = self._build_audit_event(
+                    request_id=request_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
                     endpoint=str(request.url.path),
+                    requested_model=payload.model,
+                    selected_model=selected_model,
                     provider=routed_provider,
-                    model=selected_model,
-                    policy_decision=policy_decision_label,
-                    status_code=200,
-                    latency_s=latency_ms / 1000.0,
+                    decision=decision,
+                    policy_decision_label=policy_decision_label,
+                    redaction_count=redaction_count,
+                    request_payload_hash=request_payload_hash,
+                    redacted_payload_hash=redacted_payload_hash,
+                    provider_request_hash=provider_request_hash,
+                    provider_response_hash=provider_response_hash,
+                    retrieval_citations=citations,
+                    streaming=True,
                     tokens_in=usage_prompt_tokens,
                     tokens_out=usage_completion_tokens,
                     cost_usd=cost_usd,
-                    redaction_count=redaction_count,
                     provider_attempts=provider_attempts,
+                    fallback_chain=fallback_chain,
                 )
+                if stream_error is not None:
+                    audit_event["stream_error"] = type(stream_error).__name__
+                try:
+                    self._audit_writer.write_event(audit_event)
+                except AuditValidationError as exc:
+                    logger.warning(
+                        "audit_write_failed_stream",
+                        extra={
+                            "request_id": request_id,
+                            "provider": routed_provider,
+                            "error": str(exc),
+                        },
+                    )
+
+                latency_ms = int((perf_counter() - started) * 1000)
+                logger.info(
+                    "chat_stream_completed",
+                    extra={
+                        "request_id": request_id,
+                        "tenant_id": tenant_id,
+                        "user_id": user_id,
+                        "model": selected_model,
+                        "policy_decision": policy_decision_label,
+                        "redaction_count": redaction_count,
+                        "provider": routed_provider,
+                        "latency_ms": latency_ms,
+                        "token_in": usage_prompt_tokens,
+                        "token_out": usage_completion_tokens,
+                        "cost_usd": cost_usd,
+                        "provider_attempts": provider_attempts,
+                        "fallback_chain": fallback_chain,
+                        "stream_error": type(stream_error).__name__
+                        if stream_error
+                        else None,
+                    },
+                )
+                if self._settings.metrics_enabled:
+                    record_request(
+                        endpoint=str(request.url.path),
+                        provider=routed_provider,
+                        model=selected_model,
+                        policy_decision=policy_decision_label,
+                        status_code=stream_status_code,
+                        latency_s=latency_ms / 1000.0,
+                        tokens_in=usage_prompt_tokens,
+                        tokens_out=usage_completion_tokens,
+                        cost_usd=cost_usd,
+                        redaction_count=redaction_count,
+                        provider_attempts=provider_attempts,
+                    )
 
         return event_stream()
 

@@ -110,9 +110,10 @@ class S3Connector:
             return self._cache_records
 
         records = self._refresh_records()
-        self._cache_records = records
-        self._cache_loaded_at = now
-        return records
+        if records or self._cache_records is None:
+            self._cache_records = records
+            self._cache_loaded_at = now
+        return self._cache_records
 
     def _refresh_records(self) -> list[dict[str, Any]]:
         object_keys = self._list_index_keys()
