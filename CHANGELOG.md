@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0 - 2026-02-20
+
+### GA Promotion
+- Promoted all `v0.6.0-alpha.1` capabilities to GA with no contract-breaking API changes.
+- Confirmed `v0.6.0` compatibility for runtime policy enforcement, redaction, provider parity gating, webhook durability, and evidence automation flows.
+
+### Release and Operations
+- Added stable release notes at `docs/releases/v0.6.0.md`.
+- Updated project, app, chart, and Terraform defaults to `0.6.0` / `v0.6.0`.
+- Kept `v0.6.0-alpha.1` notes for prerelease traceability and migration history.
+
 ## v0.6.0-alpha.1 - 2026-02-20
 
 ### Provider and Runtime Operations Hardening

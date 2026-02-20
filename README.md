@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.6.0-alpha.1 |
+| Current version | 0.6.0 |
 
 ### Quality and Contracts
 
@@ -795,9 +795,10 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
-| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | v0.6.0-alpha.1 release dossier and migration notes |
+| [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) | Current stable release notes (v0.6.0) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Current stable release notes (v0.5.0) |
+| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | Latest prerelease notes (v0.6.0-alpha.1) |
+| [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
@@ -853,7 +854,7 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Automate weekly evidence report generation via scheduled GitHub Actions workflow ([workflow](.github/workflows/weekly-evidence-report.yml))
 - [x] Auto-maintain `docs/benchmarks/reports/index.md` from weekly report artifacts ([index script](scripts/update_weekly_reports_index.py), [index](docs/benchmarks/reports/index.md))
 - [x] Add SharePoint managed-identity authentication mode (tokenless runtime credential path) ([connector](app/rag/connectors/sharepoint.py), [ops guide](docs/operations/sharepoint-connector.md))
-- [x] Ship `v0.6.0` release dossier with migration notes from `v0.5.x` ([dossier](docs/releases/v0.6.0-alpha.1.md))
+- [x] Ship `v0.6.0` release dossier with migration notes from `v0.5.x` ([dossier](docs/releases/v0.6.0.md))
 
 ## Licence
 
