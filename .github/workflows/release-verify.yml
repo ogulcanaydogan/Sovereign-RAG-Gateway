@@ -1,0 +1,25 @@
+name: release-verify
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-latest-release-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify latest release evidence assets
+        run: |
+          python scripts/check_release_assets.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --latest

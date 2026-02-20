@@ -10,6 +10,7 @@
 - Added stable release notes at `docs/releases/v0.6.0.md`.
 - Updated project, app, chart, and Terraform defaults to `0.6.0` / `v0.6.0`.
 - Kept `v0.6.0-alpha.1` notes for prerelease traceability and migration history.
+- Added `release-verify` scheduled workflow and `scripts/check_release_assets.py` to validate that latest releases retain required evidence/SBOM assets.
 
 ## v0.6.0-alpha.1 - 2026-02-20
 

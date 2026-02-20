@@ -654,7 +654,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 |---|---|
 | Kubernetes manifests | 25 YAML files |
 | Helm chart templates | 12 templates with values schema validation |
-| CI/CD pipelines | 7 (test, provider parity matrix, deploy-smoke, signed release, EKS validation, evidence replay, weekly evidence automation) |
+| CI/CD pipelines | 8 (test, provider parity matrix, deploy-smoke, signed release, release verification, EKS validation, evidence replay, weekly evidence automation) |
 | GitOps environments | 3 (dev, staging, prod via Argo CD) |
 | Prometheus metrics | 10 counters + 2 histograms |
 | Grafana dashboard panels | 13 panels across 5 operational domains |
@@ -801,6 +801,7 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
+| [`scripts/check_release_assets.py`](scripts/check_release_assets.py) | Release artifact integrity verifier (evidence + SBOM) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Previous release notes (v0.3.0) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Previous release notes (v0.2.0) |
