@@ -11,7 +11,7 @@ This connector enables policy-scoped retrieval from SharePoint documents via Mic
 
 ```bash
 SRG_RAG_SHAREPOINT_SITE_ID="<site-id>"
-SRG_RAG_SHAREPOINT_BEARER_TOKEN="<graph-api-token>"
+SRG_RAG_SHAREPOINT_AUTH_MODE="bearer_token" # bearer_token|managed_identity
 ```
 
 ## Optional Environment Variables
@@ -19,6 +19,12 @@ SRG_RAG_SHAREPOINT_BEARER_TOKEN="<graph-api-token>"
 ```bash
 SRG_RAG_SHAREPOINT_BASE_URL="https://graph.microsoft.com/v1.0"
 SRG_RAG_SHAREPOINT_DRIVE_ID="<drive-id>"
+SRG_RAG_SHAREPOINT_BEARER_TOKEN="<graph-api-token>"
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_ENDPOINT="http://169.254.169.254/metadata/identity/oauth2/token"
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_RESOURCE="https://graph.microsoft.com/"
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_API_VERSION="2018-02-01"
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_CLIENT_ID="<optional-user-assigned-client-id>"
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_TIMEOUT_S="3.0"
 SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES="/drives/<drive-id>/root:/Ops,/drives/<drive-id>/root:/Security"
 SRG_RAG_SHAREPOINT_CACHE_TTL_SECONDS="60"
 ```
@@ -48,4 +54,5 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
 ## Notes
 - Search ranking is lexical overlap over document names and parent paths.
 - `fetch` reads page content from Graph download URLs and returns normalized plain text.
-- For least privilege, scope Graph token permissions and constrain retrieval with `SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES`.
+- For least privilege, scope Graph permissions and constrain retrieval with `SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES`.
+- `SRG_RAG_SHAREPOINT_AUTH_MODE=managed_identity` uses Azure IMDS token retrieval at runtime, avoiding static bearer tokens in deployment config.

@@ -75,6 +75,11 @@ python scripts/replay_webhook_dead_letter.py \
 
 Replay reports now include per-event replay metrics under `summary.by_event`.
 
+Dashboard panels (deployed via `deploy/observability/grafana-dashboard-configmap.yaml`):
+- `Webhook Delivery Attempts (rate)`
+- `Dead-letter Record Rate`
+- `Dead-letter Pruned (24h)`
+
 ## 4) Fault-Injection Benchmark Scenarios
 
 `scripts/benchmark_runner.py` now supports:

@@ -1,7 +1,7 @@
 name: weekly-evidence-report
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   schedule:
     - cron: "0 7 * * 1"
 
@@ -82,8 +82,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: automation/weekly-evidence-report-${{ steps.meta.outputs.report_date }}
-          commit-message: docs: weekly evidence report ${{ steps.meta.outputs.report_date }}
-          title: docs: weekly evidence report ${{ steps.meta.outputs.report_date }}
+          commit-message: "docs: weekly evidence report ${{ steps.meta.outputs.report_date }}"
+          title: "docs: weekly evidence report ${{ steps.meta.outputs.report_date }}"
           body: |
             Automated weekly benchmark/evidence report refresh.
 

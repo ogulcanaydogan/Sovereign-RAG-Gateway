@@ -65,6 +65,18 @@ env:
   redactionEnabled: true
   ragEnabled: true
   ragAllowedConnectors: filesystem
+  ragSharepointBaseUrl: https://graph.microsoft.com/v1.0
+  ragSharepointSiteId: ""
+  ragSharepointDriveId: ""
+  ragSharepointAuthMode: bearer_token
+  ragSharepointBearerToken: ""
+  ragSharepointManagedIdentityEndpoint: http://169.254.169.254/metadata/identity/oauth2/token
+  ragSharepointManagedIdentityResource: https://graph.microsoft.com/
+  ragSharepointManagedIdentityApiVersion: "2018-02-01"
+  ragSharepointManagedIdentityClientId: ""
+  ragSharepointManagedIdentityTimeoutS: 3.0
+  ragSharepointAllowedPathPrefixes: ""
+  ragSharepointCacheTtlSeconds: 60.0
   logLevel: INFO
   auditLogPath: /tmp/audit/events.jsonl
   metricsEnabled: true

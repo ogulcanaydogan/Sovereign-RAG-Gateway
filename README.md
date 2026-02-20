@@ -766,7 +766,13 @@ SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
 SRG_RAG_SHAREPOINT_BASE_URL=https://graph.microsoft.com/v1.0
 SRG_RAG_SHAREPOINT_SITE_ID=<site-id>
 SRG_RAG_SHAREPOINT_DRIVE_ID=<drive-id>
+SRG_RAG_SHAREPOINT_AUTH_MODE=bearer_token # bearer_token|managed_identity
 SRG_RAG_SHAREPOINT_BEARER_TOKEN=<token>
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_ENDPOINT=http://169.254.169.254/metadata/identity/oauth2/token
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_RESOURCE=https://graph.microsoft.com/
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_API_VERSION=2018-02-01
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_CLIENT_ID=<optional-user-assigned-client-id>
+SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_TIMEOUT_S=3.0
 SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 ```
 
@@ -789,6 +795,7 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
+| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | v0.6.0-alpha.1 release dossier and migration notes |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Current stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Latest prerelease notes (v0.5.0-alpha.1) |
@@ -840,13 +847,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22207623171), [weekly report](docs/benchmarks/reports/weekly-2026-02-20.md))
 
 ### Next (v0.6.0)
-- [ ] Promote provider parity matrix as a release gate with persisted CI artifacts (`http_openai`, `azure_openai`, `anthropic`)
-- [ ] Harden webhook dead-letter durability defaults (`sqlite` backend + retention pruning + replay compatibility)
-- [ ] Publish webhook replay/retention metric panels in operations dashboards
-- [ ] Automate weekly evidence report generation via scheduled GitHub Actions workflow
-- [ ] Auto-maintain `docs/benchmarks/reports/index.md` from weekly report artifacts
-- [ ] Add SharePoint managed-identity authentication mode (tokenless runtime credential path)
-- [ ] Ship `v0.6.0` release dossier with migration notes from `v0.5.x`
+- [x] Promote provider parity matrix as a release gate with persisted CI artifacts (`http_openai`, `azure_openai`, `anthropic`) ([workflow](.github/workflows/ci.yml), [script](scripts/provider_parity_matrix.py), [latest snapshot](docs/benchmarks/reports/provider-parity-latest.md))
+- [x] Harden webhook dead-letter durability defaults (`sqlite` backend + retention pruning + replay compatibility) ([store](app/webhooks/dead_letter_store.py), [replay](scripts/replay_webhook_dead_letter.py))
+- [x] Publish webhook replay/retention metric panels in operations dashboards ([dashboard](deploy/observability/grafana-dashboard-configmap.yaml))
+- [x] Automate weekly evidence report generation via scheduled GitHub Actions workflow ([workflow](.github/workflows/weekly-evidence-report.yml))
+- [x] Auto-maintain `docs/benchmarks/reports/index.md` from weekly report artifacts ([index script](scripts/update_weekly_reports_index.py), [index](docs/benchmarks/reports/index.md))
+- [x] Add SharePoint managed-identity authentication mode (tokenless runtime credential path) ([connector](app/rag/connectors/sharepoint.py), [ops guide](docs/operations/sharepoint-connector.md))
+- [x] Ship `v0.6.0` release dossier with migration notes from `v0.5.x` ([dossier](docs/releases/v0.6.0-alpha.1.md))
 
 ## Licence
 
