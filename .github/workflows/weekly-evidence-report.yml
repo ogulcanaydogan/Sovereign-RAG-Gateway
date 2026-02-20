@@ -79,6 +79,8 @@ jobs:
             --out docs/benchmarks/reports/index.md
 
       - name: Create weekly evidence pull request
+        id: cpr
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
           branch: automation/weekly-evidence-report-${{ steps.meta.outputs.report_date }}
@@ -93,3 +95,9 @@ jobs:
           add-paths: |
             docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md
             docs/benchmarks/reports/index.md
+
+      - name: PR creation fallback notice
+        if: steps.cpr.outcome != 'success'
+        run: |
+          echo "create-pull-request step could not open a PR (repository policy or permissions)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Generated files still committed to branch: automation/weekly-evidence-report-${{ steps.meta.outputs.report_date }}" >> "$GITHUB_STEP_SUMMARY"
