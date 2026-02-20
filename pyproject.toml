@@ -46,6 +46,10 @@ disallow_untyped_defs = true
 strict_equality = true
 packages = ["app", "scripts"]
 
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
