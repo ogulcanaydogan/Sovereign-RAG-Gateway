@@ -21,8 +21,8 @@ This module provisions a production-oriented baseline for Sovereign RAG Gateway 
 | Variable | Default | Description |
 |---|---|---|
 | `kubernetes_version` | `1.29` | EKS Kubernetes version |
-| `gateway_chart_version` | `0.5.0` | Helm chart/app release version |
-| `gateway_image_tag` | `v0.5.0` | Gateway image tag |
+| `gateway_chart_version` | `0.6.0-alpha.1` | Helm chart/app release version |
+| `gateway_image_tag` | `v0.6.0-alpha.1` | Gateway image tag |
 | `gateway_replicas` | `2` | Gateway replica count |
 | `public_api_access` | `false` | Public EKS API endpoint access |
 | `srg_budget_enabled` | `false` | Enables budget enforcement in gateway |
@@ -43,8 +43,8 @@ cluster_name   = "srg-prod"
 kms_key_arn    = "arn:aws:kms:us-east-1:123456789012:key/abcd-1234"
 srg_api_keys   = "prod-key-1,prod-key-2"
 
-gateway_image_tag    = "v0.5.0"
-gateway_chart_version = "0.5.0"
+gateway_image_tag    = "v0.6.0-alpha.1"
+gateway_chart_version = "0.6.0-alpha.1"
 gateway_replicas     = 3
 srg_budget_enabled   = true
 srg_budget_backend   = "memory"

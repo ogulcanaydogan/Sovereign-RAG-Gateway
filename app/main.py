@@ -241,7 +241,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.5.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.6.0-alpha.1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
