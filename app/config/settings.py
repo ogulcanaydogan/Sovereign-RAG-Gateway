@@ -77,7 +77,9 @@ class Settings(BaseSettings):
     webhook_max_retries: int = 1
     webhook_backoff_base_s: float = 0.2
     webhook_backoff_max_s: float = 2.0
-    webhook_dead_letter_path: Path | None = Path("artifacts/audit/webhook_dead_letter.jsonl")
+    webhook_dead_letter_backend: str = "sqlite"
+    webhook_dead_letter_path: Path | None = Path("artifacts/audit/webhook_dead_letter.db")
+    webhook_dead_letter_retention_days: int = 30
 
     # Telemetry / tracing
     tracing_enabled: bool = False
@@ -167,6 +169,10 @@ class Settings(BaseSettings):
                 continue
             result[key] = value.strip()
         return result
+
+    @property
+    def webhook_dead_letter_backend_normalized(self) -> str:
+        return self.webhook_dead_letter_backend.strip().lower()
 
 
 @lru_cache

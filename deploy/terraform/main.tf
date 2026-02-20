@@ -303,6 +303,21 @@ resource "helm_release" "gateway" {
   }
 
   set {
+    name  = "env.webhookDeadLetterBackend"
+    value = var.srg_webhook_dead_letter_backend
+  }
+
+  set {
+    name  = "env.webhookDeadLetterPath"
+    value = var.srg_webhook_dead_letter_path
+  }
+
+  set {
+    name  = "env.webhookDeadLetterRetentionDays"
+    value = var.srg_webhook_dead_letter_retention_days
+  }
+
+  set {
     name  = "env.tracingEnabled"
     value = var.srg_tracing_enabled
   }

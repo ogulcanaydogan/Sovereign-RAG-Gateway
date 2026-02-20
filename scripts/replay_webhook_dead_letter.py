@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -28,6 +29,7 @@ class ReplaySummary:
     failed: int
     dry_run: bool
     failures: list[ReplayFailure]
+    by_event: dict[str, dict[str, int]]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,10 +48,20 @@ class ReplaySummary:
                 }
                 for item in self.failures
             ],
+            "by_event": self.by_event,
         }
 
 
-def load_dead_letter(path: Path) -> list[dict[str, Any]]:
+def _infer_backend(path: Path, requested_backend: str) -> str:
+    normalized = requested_backend.strip().lower()
+    if normalized != "auto":
+        return normalized
+    if path.suffix.lower() in {".db", ".sqlite", ".sqlite3"}:
+        return "sqlite"
+    return "jsonl"
+
+
+def _load_dead_letter_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         raise FileNotFoundError(f"dead-letter file does not exist: {path}")
 
@@ -64,6 +76,55 @@ def load_dead_letter(path: Path) -> list[dict[str, Any]]:
                 raise ValueError(f"dead-letter row {line_number} is not a JSON object")
             rows.append(parsed)
     return rows
+
+
+def _load_dead_letter_sqlite(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        raise FileNotFoundError(f"dead-letter database does not exist: {path}")
+
+    try:
+        connection = sqlite3.connect(path)
+    except sqlite3.Error as exc:
+        raise ValueError(f"unable to open sqlite dead-letter database: {exc}") from exc
+
+    try:
+        cursor = connection.execute(
+            """
+            SELECT timestamp, event_type, endpoint_url, status_code, error, attempt_count,
+                   idempotency_key, body_json
+            FROM webhook_dead_letter
+            ORDER BY id ASC
+            """
+        )
+        rows: list[dict[str, Any]] = []
+        for row in cursor.fetchall():
+            body = json.loads(row[7]) if row[7] else {}
+            rows.append(
+                {
+                    "timestamp": row[0],
+                    "event_type": row[1],
+                    "endpoint_url": row[2],
+                    "status_code": row[3],
+                    "error": row[4],
+                    "attempt_count": row[5],
+                    "idempotency_key": row[6],
+                    "body": body,
+                }
+            )
+        return rows
+    except sqlite3.Error as exc:
+        raise ValueError(f"unable to read sqlite dead-letter rows: {exc}") from exc
+    finally:
+        connection.close()
+
+
+def load_dead_letter(path: Path, backend: str = "auto") -> list[dict[str, Any]]:
+    selected_backend = _infer_backend(path, backend)
+    if selected_backend == "jsonl":
+        return _load_dead_letter_jsonl(path)
+    if selected_backend == "sqlite":
+        return _load_dead_letter_sqlite(path)
+    raise ValueError(f"unsupported dead-letter backend: {backend}")
 
 
 def build_idempotency_key(
@@ -101,6 +162,7 @@ def replay_dead_letter(
     attempted = 0
     succeeded = 0
     failures: list[ReplayFailure] = []
+    by_event: dict[str, dict[str, int]] = {}
 
     def default_sender(
         endpoint_url: str,
@@ -123,6 +185,12 @@ def replay_dead_letter(
 
     for record in considered:
         event_type = str(record.get("event_type", "")).strip()
+        if event_type not in by_event:
+            by_event[event_type] = {
+                "attempted": 0,
+                "succeeded": 0,
+                "failed": 0,
+            }
         endpoint_url = endpoint_override or str(record.get("endpoint_url", "")).strip()
         if endpoint_url == "":
             failures.append(
@@ -132,6 +200,7 @@ def replay_dead_letter(
                     reason="missing endpoint_url",
                 )
             )
+            by_event[event_type]["failed"] += 1
             continue
 
         raw_body = record.get("body")
@@ -143,6 +212,7 @@ def replay_dead_letter(
                     reason="body must be a JSON object",
                 )
             )
+            by_event[event_type]["failed"] += 1
             continue
 
         original_idempotency = str(record.get("idempotency_key", "")).strip()
@@ -163,14 +233,17 @@ def replay_dead_letter(
 
         body_json = json.dumps(raw_body, separators=(",", ":"), ensure_ascii=True)
         attempted += 1
+        by_event[event_type]["attempted"] += 1
 
         if dry_run:
             succeeded += 1
+            by_event[event_type]["succeeded"] += 1
             continue
 
         status_code, error = post(endpoint_url, body_json, headers, timeout_s)
         if 200 <= status_code < 300:
             succeeded += 1
+            by_event[event_type]["succeeded"] += 1
             continue
 
         failures.append(
@@ -181,6 +254,7 @@ def replay_dead_letter(
                 status_code=status_code if status_code > 0 else None,
             )
         )
+        by_event[event_type]["failed"] += 1
 
     return ReplaySummary(
         total_records=len(records),
@@ -190,6 +264,7 @@ def replay_dead_letter(
         failed=len(failures),
         dry_run=dry_run,
         failures=failures,
+        by_event=by_event,
     )
 
 
@@ -197,8 +272,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Replay webhook dead-letter events")
     parser.add_argument(
         "--dead-letter",
-        default="artifacts/audit/webhook_dead_letter.jsonl",
-        help="Path to dead-letter JSONL",
+        default="artifacts/audit/webhook_dead_letter.db",
+        help="Path to dead-letter storage (JSONL or SQLite)",
+    )
+    parser.add_argument(
+        "--dead-letter-backend",
+        default="auto",
+        choices=["auto", "jsonl", "sqlite"],
+        help="Dead-letter storage backend (auto infers from file suffix)",
     )
     parser.add_argument(
         "--event-types",
@@ -236,7 +317,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        records = load_dead_letter(Path(args.dead_letter))
+        records = load_dead_letter(Path(args.dead_letter), backend=args.dead_letter_backend)
     except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}")
         raise SystemExit(2) from exc
@@ -255,6 +336,7 @@ def main() -> None:
     report = {
         "generated_at": datetime.now(UTC).isoformat(),
         "dead_letter_path": str(Path(args.dead_letter)),
+        "dead_letter_backend": _infer_backend(Path(args.dead_letter), args.dead_letter_backend),
         "filters": {
             "event_types": sorted(event_types),
             "endpoint_override": args.endpoint_override.strip() or None,
@@ -274,7 +356,8 @@ def main() -> None:
         f"attempted={summary.attempted} "
         f"succeeded={summary.succeeded} "
         f"failed={summary.failed} "
-        f"dry_run={summary.dry_run}"
+        f"dry_run={summary.dry_run} "
+        f"backend={_infer_backend(Path(args.dead_letter), args.dead_letter_backend)}"
     )
     if summary.failed > 0:
         raise SystemExit(1)

@@ -151,7 +151,31 @@ if [[ -z "$POD_NAME" ]]; then
   kubectl -n "$NAMESPACE" get pods -o wide || true
   exit 1
 fi
-DLQ_LINES="$(kubectl -n "$NAMESPACE" exec "$POD_NAME" -- sh -c 'if [ -f /tmp/audit/webhook_dead_letter.jsonl ]; then wc -l < /tmp/audit/webhook_dead_letter.jsonl; else echo 0; fi' | tr -d '[:space:]')"
+DLQ_LINES="$(
+  kubectl -n "$NAMESPACE" exec "$POD_NAME" -- sh -c '
+python3 - <<'"'"'PY'"'"'
+import os
+import pathlib
+import sqlite3
+
+backend = os.getenv("SRG_WEBHOOK_DEAD_LETTER_BACKEND", "sqlite").strip().lower()
+path = pathlib.Path(os.getenv("SRG_WEBHOOK_DEAD_LETTER_PATH", "/tmp/audit/webhook_dead_letter.db"))
+
+if not path.exists():
+    print(0)
+    raise SystemExit(0)
+
+if backend == "sqlite":
+    connection = sqlite3.connect(path)
+    cursor = connection.execute("SELECT COUNT(*) FROM webhook_dead_letter")
+    print(cursor.fetchone()[0])
+    connection.close()
+else:
+    with path.open("r", encoding="utf-8") as file_handle:
+        print(sum(1 for line in file_handle if line.strip()))
+PY
+' | tr -d "[:space:]"
+)"
 if [[ "${DLQ_LINES:-0}" -lt 1 ]]; then
   echo "Expected webhook dead-letter entries, found $DLQ_LINES"
   kubectl -n "$NAMESPACE" logs "$POD_NAME" --tail=200 || true

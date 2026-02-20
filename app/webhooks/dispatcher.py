@@ -38,6 +38,9 @@ from uuid import uuid4
 
 import httpx
 
+from app.metrics import inc_counter, observe_histogram
+from app.webhooks.dead_letter_store import DeadLetterStore, create_dead_letter_store
+
 logger = logging.getLogger("srg.webhooks")
 
 GATEWAY_VERSION = "0.5.0"
@@ -97,13 +100,24 @@ class WebhookDispatcher:
         backoff_base_s: float = 0.2,
         backoff_max_s: float = 2.0,
         dead_letter_path: Path | None = None,
+        dead_letter_backend: str = "jsonl",
+        dead_letter_retention_days: int | None = None,
+        dead_letter_store: DeadLetterStore | None = None,
     ) -> None:
         self._endpoints = list(endpoints) if endpoints else []
         self._timeout_s = timeout_s
         self._max_retries = max_retries
         self._backoff_base_s = max(backoff_base_s, 0.0)
         self._backoff_max_s = max(backoff_max_s, self._backoff_base_s)
-        self._dead_letter_path = dead_letter_path
+        self._dead_letter_store = (
+            dead_letter_store
+            if dead_letter_store is not None
+            else create_dead_letter_store(
+                backend=dead_letter_backend,
+                path=dead_letter_path,
+                retention_days=dead_letter_retention_days,
+            )
+        )
         self._delivery_log: list[WebhookDeliveryResult] = []
         self._max_log_entries = 500
 
@@ -246,6 +260,27 @@ class WebhookDispatcher:
         self._delivery_log.append(result)
         if len(self._delivery_log) > self._max_log_entries:
             self._delivery_log = self._delivery_log[-self._max_log_entries:]
+        inc_counter(
+            "srg_webhook_deliveries_total",
+            {
+                "event_type": result.event_type,
+                "success": "true" if result.success else "false",
+            },
+            1.0,
+        )
+        inc_counter(
+            "srg_webhook_delivery_attempts_total",
+            {
+                "event_type": result.event_type,
+            },
+            float(max(result.attempt_count, 1)),
+        )
+        if result.duration_ms > 0:
+            observe_histogram(
+                "srg_webhook_delivery_duration_seconds",
+                {"event_type": result.event_type},
+                result.duration_ms / 1000.0,
+            )
 
     def recent_deliveries(self, limit: int = 20) -> list[WebhookDeliveryResult]:
         """Return the most recent delivery results."""
@@ -258,7 +293,7 @@ class WebhookDispatcher:
         body: str,
         result: WebhookDeliveryResult,
     ) -> None:
-        if self._dead_letter_path is None:
+        if self._dead_letter_store is None:
             return
         record = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -271,15 +306,27 @@ class WebhookDispatcher:
             "body": json.loads(body),
         }
         try:
-            self._dead_letter_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._dead_letter_path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record, ensure_ascii=True))
-                fh.write("\n")
-        except OSError as exc:  # pragma: no cover - runtime guard
+            write_result = self._dead_letter_store.write(record)
+            if write_result.written > 0:
+                inc_counter(
+                    "srg_webhook_dead_letter_records_total",
+                    {
+                        "backend": write_result.backend,
+                        "event_type": event_type,
+                    },
+                    float(write_result.written),
+                )
+            if write_result.pruned > 0:
+                inc_counter(
+                    "srg_webhook_dead_letter_pruned_total",
+                    {"backend": write_result.backend},
+                    float(write_result.pruned),
+                )
+        except Exception as exc:  # pragma: no cover - runtime guard
             logger.warning(
                 "webhook_dead_letter_write_failed",
                 extra={
-                    "path": str(self._dead_letter_path),
+                    "path": str(getattr(self._dead_letter_store, "path", "")),
                     "error": str(exc),
                 },
             )

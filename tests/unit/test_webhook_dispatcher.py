@@ -138,6 +138,7 @@ def test_webhook_dispatcher_writes_dead_letter_on_failure(tmp_path: Path, monkey
         max_retries=1,
         backoff_base_s=0.0,
         backoff_max_s=0.0,
+        dead_letter_backend="jsonl",
         dead_letter_path=dead_letter,
     )
     results = asyncio.run(

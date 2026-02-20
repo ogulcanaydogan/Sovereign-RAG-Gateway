@@ -73,3 +73,9 @@ def test_tracing_otlp_header_map_parses_json_and_csv() -> None:
         "Authorization": "Bearer x",
         "x-tenant": "tenant-a",
     }
+
+
+def test_webhook_dead_letter_backend_defaults() -> None:
+    settings = Settings()
+    assert settings.webhook_dead_letter_backend_normalized == "sqlite"
+    assert settings.webhook_dead_letter_retention_days == 30

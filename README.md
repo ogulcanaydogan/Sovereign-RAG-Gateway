@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.5.0-alpha.1 |
+| Current version | 0.5.0 |
 
 ### Quality and Contracts
 
@@ -654,9 +654,9 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 |---|---|
 | Kubernetes manifests | 25 YAML files |
 | Helm chart templates | 12 templates with values schema validation |
-| CI/CD pipelines | 5 (test, deploy-smoke, signed release, EKS validation, evidence replay) |
+| CI/CD pipelines | 7 (test, provider parity matrix, deploy-smoke, signed release, EKS validation, evidence replay, weekly evidence automation) |
 | GitOps environments | 3 (dev, staging, prod via Argo CD) |
-| Prometheus metrics | 6 counters + 1 histogram |
+| Prometheus metrics | 10 counters + 2 histograms |
 | Grafana dashboard panels | 10 panels across 4 operational domains |
 
 ## Quick Start
@@ -722,7 +722,8 @@ python scripts/audit_replay_bundle.py \
 Replay failed webhook deliveries from dead-letter storage:
 ```bash
 python scripts/replay_webhook_dead_letter.py \
-  --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+  --dead-letter artifacts/audit/webhook_dead_letter.db \
+  --dead-letter-backend sqlite \
   --event-types policy_denied,budget_exceeded \
   --max-events 50 \
   --report-out artifacts/audit/webhook_replay_report.json
@@ -748,7 +749,9 @@ SRG_WEBHOOK_TIMEOUT_S=5.0
 SRG_WEBHOOK_MAX_RETRIES=1
 SRG_WEBHOOK_BACKOFF_BASE_S=0.2
 SRG_WEBHOOK_BACKOFF_MAX_S=2.0
-SRG_WEBHOOK_DEAD_LETTER_PATH=artifacts/audit/webhook_dead_letter.jsonl
+SRG_WEBHOOK_DEAD_LETTER_BACKEND=sqlite # sqlite|jsonl
+SRG_WEBHOOK_DEAD_LETTER_PATH=artifacts/audit/webhook_dead_letter.db
+SRG_WEBHOOK_DEAD_LETTER_RETENTION_DAYS=30
 
 # Tracing diagnostics + OTLP export
 SRG_TRACING_ENABLED=true
@@ -784,9 +787,11 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
+| [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
+| [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md) | Current stable release notes (v0.4.0) |
-| [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Current prerelease notes draft (v0.5.0-alpha.1) |
+| [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Current stable release notes (v0.5.0) |
+| [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Latest prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Previous release notes (v0.3.0) |
@@ -833,6 +838,15 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] SharePoint read-only connector (Graph API, policy-scoped retrieval)
 - [x] Promote v0.5.0-alpha.1 release notes and tagged prerelease ([tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.5.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22216373015))
 - [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22207623171), [weekly report](docs/benchmarks/reports/weekly-2026-02-20.md))
+
+### Next (v0.6.0)
+- [ ] Promote provider parity matrix as a release gate with persisted CI artifacts (`http_openai`, `azure_openai`, `anthropic`)
+- [ ] Harden webhook dead-letter durability defaults (`sqlite` backend + retention pruning + replay compatibility)
+- [ ] Publish webhook replay/retention metric panels in operations dashboards
+- [ ] Automate weekly evidence report generation via scheduled GitHub Actions workflow
+- [ ] Auto-maintain `docs/benchmarks/reports/index.md` from weekly report artifacts
+- [ ] Add SharePoint managed-identity authentication mode (tokenless runtime credential path)
+- [ ] Ship `v0.6.0` release dossier with migration notes from `v0.5.x`
 
 ## Licence
 

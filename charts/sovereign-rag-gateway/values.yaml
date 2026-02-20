@@ -83,7 +83,9 @@ env:
   webhookMaxRetries: 1
   webhookBackoffBaseS: 0.2
   webhookBackoffMaxS: 2.0
-  webhookDeadLetterPath: /tmp/audit/webhook_dead_letter.jsonl
+  webhookDeadLetterBackend: sqlite
+  webhookDeadLetterPath: /tmp/audit/webhook_dead_letter.db
+  webhookDeadLetterRetentionDays: 30
   tracingEnabled: false
   tracingMaxTraces: 1000
   tracingOtlpEnabled: false
