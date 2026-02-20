@@ -21,14 +21,17 @@ This module provisions a production-oriented baseline for Sovereign RAG Gateway 
 | Variable | Default | Description |
 |---|---|---|
 | `kubernetes_version` | `1.29` | EKS Kubernetes version |
-| `gateway_chart_version` | `0.4.0` | Helm chart/app release version |
-| `gateway_image_tag` | `v0.4.0` | Gateway image tag |
+| `gateway_chart_version` | `0.5.0` | Helm chart/app release version |
+| `gateway_image_tag` | `v0.5.0` | Gateway image tag |
 | `gateway_replicas` | `2` | Gateway replica count |
 | `public_api_access` | `false` | Public EKS API endpoint access |
 | `srg_budget_enabled` | `false` | Enables budget enforcement in gateway |
 | `srg_budget_backend` | `memory` | Budget backend (`memory` or `redis`) |
 | `srg_budget_redis_url` | `""` | Redis DSN used when backend is `redis` |
 | `srg_webhook_enabled` | `false` | Enables webhook notifications |
+| `srg_webhook_dead_letter_backend` | `sqlite` | Webhook dead-letter backend (`sqlite` or `jsonl`) |
+| `srg_webhook_dead_letter_path` | `/tmp/audit/webhook_dead_letter.db` | Dead-letter storage path |
+| `srg_webhook_dead_letter_retention_days` | `30` | Dead-letter retention period |
 | `srg_tracing_enabled` | `false` | Enables request trace collection |
 | `srg_tracing_otlp_enabled` | `false` | Enables OTLP exporter |
 | `srg_tracing_otlp_endpoint` | `""` | OTLP collector endpoint |
@@ -40,12 +43,14 @@ cluster_name   = "srg-prod"
 kms_key_arn    = "arn:aws:kms:us-east-1:123456789012:key/abcd-1234"
 srg_api_keys   = "prod-key-1,prod-key-2"
 
-gateway_image_tag    = "v0.4.0"
-gateway_chart_version = "0.4.0"
+gateway_image_tag    = "v0.5.0"
+gateway_chart_version = "0.5.0"
 gateway_replicas     = 3
 srg_budget_enabled   = true
 srg_budget_backend   = "memory"
 srg_webhook_enabled  = true
+srg_webhook_dead_letter_backend = "sqlite"
+srg_webhook_dead_letter_retention_days = 30
 srg_tracing_enabled  = true
 
 tags = {

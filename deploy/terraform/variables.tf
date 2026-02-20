@@ -143,6 +143,24 @@ variable "srg_webhook_enabled" {
   default     = false
 }
 
+variable "srg_webhook_dead_letter_backend" {
+  description = "Webhook dead-letter backend (`jsonl` or `sqlite`)"
+  type        = string
+  default     = "sqlite"
+}
+
+variable "srg_webhook_dead_letter_path" {
+  description = "Webhook dead-letter storage path"
+  type        = string
+  default     = "/tmp/audit/webhook_dead_letter.db"
+}
+
+variable "srg_webhook_dead_letter_retention_days" {
+  description = "Webhook dead-letter retention period in days (0 disables pruning)"
+  type        = number
+  default     = 30
+}
+
 variable "srg_tracing_enabled" {
   description = "Enable request-level tracing"
   type        = bool

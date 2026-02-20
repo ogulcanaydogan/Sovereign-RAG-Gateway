@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from pathlib import Path
 
 from scripts.replay_webhook_dead_letter import (
@@ -113,6 +114,8 @@ def test_replay_dead_letter_records_failure_for_non_2xx() -> None:
     summary = replay_dead_letter(records=records, sender=fake_sender)
     assert summary.failed == 1
     assert summary.failures[0].status_code == 500
+    assert summary.by_event["provider_error"]["attempted"] == 1
+    assert summary.by_event["provider_error"]["failed"] == 1
 
 
 def test_build_idempotency_key_is_deterministic() -> None:
@@ -130,3 +133,48 @@ def test_build_idempotency_key_is_deterministic() -> None:
         suffix="replay",
     )
     assert first == second
+
+
+def test_load_dead_letter_reads_sqlite(tmp_path: Path) -> None:
+    dead_letter_db = tmp_path / "dlq.db"
+    connection = sqlite3.connect(dead_letter_db)
+    connection.execute(
+        """
+        CREATE TABLE webhook_dead_letter (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            endpoint_url TEXT NOT NULL,
+            status_code INTEGER,
+            error TEXT,
+            attempt_count INTEGER NOT NULL,
+            idempotency_key TEXT NOT NULL,
+            body_json TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO webhook_dead_letter (
+            timestamp, event_type, endpoint_url, status_code, error,
+            attempt_count, idempotency_key, body_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "2026-02-20T00:00:00+00:00",
+            "policy_denied",
+            "https://example.test/sqlite",
+            500,
+            "failed",
+            2,
+            "orig-sqlite",
+            json.dumps({"event_type": "policy_denied", "payload": {"request_id": "req-sqlite"}}),
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    rows = load_dead_letter(dead_letter_db, backend="sqlite")
+    assert len(rows) == 1
+    assert rows[0]["event_type"] == "policy_denied"
+    assert rows[0]["endpoint_url"] == "https://example.test/sqlite"

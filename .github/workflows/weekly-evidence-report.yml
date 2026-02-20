@@ -1,0 +1,95 @@
+name: weekly-evidence-report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  generate-weekly-report:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect latest workflow + release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+
+          REPORT_DATE="$(date -u +%Y-%m-%d)"
+
+          DEPLOY_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-smoke.yml/runs?status=completed&conclusion=success&per_page=1" 2>/dev/null || echo '{"workflow_runs":[]}')"
+          RELEASE_RUN_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?status=completed&conclusion=success&per_page=1" 2>/dev/null || echo '{"workflow_runs":[]}')"
+          RELEASE_META_JSON="$(gh release list --limit 1 --json tagName,url,publishedAt 2>/dev/null || echo '[]')"
+
+          DEPLOY_RUN_ID="$(echo "${DEPLOY_JSON}" | jq -r '.workflow_runs[0].id // ""')"
+          DEPLOY_RUN_URL="$(echo "${DEPLOY_JSON}" | jq -r '.workflow_runs[0].html_url // ""')"
+          DEPLOY_COMPLETED_AT="$(echo "${DEPLOY_JSON}" | jq -r '.workflow_runs[0].updated_at // ""')"
+          DEPLOY_RESULT="$(echo "${DEPLOY_JSON}" | jq -r '.workflow_runs[0].conclusion // "unknown"')"
+
+          RELEASE_RUN_ID="$(echo "${RELEASE_RUN_JSON}" | jq -r '.workflow_runs[0].id // ""')"
+          RELEASE_RUN_URL="$(echo "${RELEASE_RUN_JSON}" | jq -r '.workflow_runs[0].html_url // ""')"
+          RELEASE_COMPLETED_AT="$(echo "${RELEASE_RUN_JSON}" | jq -r '.workflow_runs[0].updated_at // ""')"
+          RELEASE_RESULT="$(echo "${RELEASE_RUN_JSON}" | jq -r '.workflow_runs[0].conclusion // "unknown"')"
+
+          RELEASE_TAG="$(echo "${RELEASE_META_JSON}" | jq -r '.[0].tagName // ""')"
+          RELEASE_URL="$(echo "${RELEASE_META_JSON}" | jq -r '.[0].url // ""')"
+
+          {
+            echo "report_date=${REPORT_DATE}"
+            echo "deploy_run_id=${DEPLOY_RUN_ID}"
+            echo "deploy_run_url=${DEPLOY_RUN_URL}"
+            echo "deploy_completed_at=${DEPLOY_COMPLETED_AT}"
+            echo "deploy_result=${DEPLOY_RESULT}"
+            echo "release_run_id=${RELEASE_RUN_ID}"
+            echo "release_run_url=${RELEASE_RUN_URL}"
+            echo "release_completed_at=${RELEASE_COMPLETED_AT}"
+            echo "release_result=${RELEASE_RESULT}"
+            echo "release_tag=${RELEASE_TAG}"
+            echo "release_url=${RELEASE_URL}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Generate weekly report + index
+        run: |
+          set -euo pipefail
+          python scripts/generate_weekly_evidence_report.py \
+            --report-date "${{ steps.meta.outputs.report_date }}" \
+            --out "docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md" \
+            --deploy-smoke-run-id "${{ steps.meta.outputs.deploy_run_id }}" \
+            --deploy-smoke-url "${{ steps.meta.outputs.deploy_run_url }}" \
+            --deploy-smoke-completed-at "${{ steps.meta.outputs.deploy_completed_at }}" \
+            --deploy-smoke-result "${{ steps.meta.outputs.deploy_result }}" \
+            --release-run-id "${{ steps.meta.outputs.release_run_id }}" \
+            --release-run-url "${{ steps.meta.outputs.release_run_url }}" \
+            --release-run-completed-at "${{ steps.meta.outputs.release_completed_at }}" \
+            --release-run-result "${{ steps.meta.outputs.release_result }}" \
+            --release-tag "${{ steps.meta.outputs.release_tag }}" \
+            --release-url "${{ steps.meta.outputs.release_url }}"
+          python scripts/update_weekly_reports_index.py \
+            --reports-dir docs/benchmarks/reports \
+            --out docs/benchmarks/reports/index.md
+
+      - name: Create weekly evidence pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/weekly-evidence-report-${{ steps.meta.outputs.report_date }}
+          commit-message: docs: weekly evidence report ${{ steps.meta.outputs.report_date }}
+          title: docs: weekly evidence report ${{ steps.meta.outputs.report_date }}
+          body: |
+            Automated weekly benchmark/evidence report refresh.
+
+            Generated files:
+            - docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md
+            - docs/benchmarks/reports/index.md
+          add-paths: |
+            docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md
+            docs/benchmarks/reports/index.md

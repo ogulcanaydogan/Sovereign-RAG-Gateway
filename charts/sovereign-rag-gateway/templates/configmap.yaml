@@ -31,7 +31,9 @@ data:
   SRG_WEBHOOK_MAX_RETRIES: {{ .Values.env.webhookMaxRetries | quote }}
   SRG_WEBHOOK_BACKOFF_BASE_S: {{ .Values.env.webhookBackoffBaseS | quote }}
   SRG_WEBHOOK_BACKOFF_MAX_S: {{ .Values.env.webhookBackoffMaxS | quote }}
+  SRG_WEBHOOK_DEAD_LETTER_BACKEND: {{ .Values.env.webhookDeadLetterBackend | quote }}
   SRG_WEBHOOK_DEAD_LETTER_PATH: {{ .Values.env.webhookDeadLetterPath | quote }}
+  SRG_WEBHOOK_DEAD_LETTER_RETENTION_DAYS: {{ .Values.env.webhookDeadLetterRetentionDays | quote }}
   SRG_TRACING_ENABLED: {{ .Values.env.tracingEnabled | quote }}
   SRG_TRACING_MAX_TRACES: {{ .Values.env.tracingMaxTraces | quote }}
   SRG_TRACING_OTLP_ENABLED: {{ .Values.env.tracingOtlpEnabled | quote }}

@@ -85,11 +85,45 @@ jobs:
       - name: Webhook dead-letter replay smoke
         run: |
           mkdir -p artifacts/audit
-          cat > artifacts/audit/webhook_dead_letter.jsonl <<'JSON'
-          {"event_type":"policy_denied","endpoint_url":"https://example.invalid/webhook","idempotency_key":"orig-key","body":{"event_type":"policy_denied","payload":{"request_id":"req-ci"}}}
-          JSON
+          uv run python - <<'PY'
+          import json
+          import sqlite3
+
+          conn = sqlite3.connect("artifacts/audit/webhook_dead_letter.db")
+          conn.execute(
+              """
+              CREATE TABLE IF NOT EXISTS webhook_dead_letter (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  timestamp TEXT NOT NULL,
+                  event_type TEXT NOT NULL,
+                  endpoint_url TEXT NOT NULL,
+                  status_code INTEGER,
+                  error TEXT,
+                  attempt_count INTEGER NOT NULL,
+                  idempotency_key TEXT NOT NULL,
+                  body_json TEXT NOT NULL
+              )
+              """
+          )
+          conn.execute(
+              """
+              INSERT INTO webhook_dead_letter (
+                  timestamp, event_type, endpoint_url, status_code, error,
+                  attempt_count, idempotency_key, body_json
+              ) VALUES (
+                  datetime('now'), 'policy_denied', 'https://example.invalid/webhook',
+                  500, 'simulated', 1, 'orig-key',
+                  ?
+              )
+              """,
+              (json.dumps({"event_type": "policy_denied", "payload": {"request_id": "req-ci"}}),),
+          )
+          conn.commit()
+          conn.close()
+          PY
           uv run python scripts/replay_webhook_dead_letter.py \
-            --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+            --dead-letter artifacts/audit/webhook_dead_letter.db \
+            --dead-letter-backend sqlite \
             --dry-run \
             --report-out artifacts/audit/webhook_replay_report.json
       - name: Governance benchmark gate
@@ -129,3 +163,84 @@ jobs:
             --max-citation-drop-abs 0.1
       - name: Tests
         run: uv run pytest
+
+  provider-parity-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [http_openai, azure_openai, anthropic]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Generate provider parity matrix entry
+        run: |
+          uv run python scripts/provider_parity_matrix.py \
+            --provider "${{ matrix.provider }}" \
+            --strict \
+            --out-json "artifacts/provider-parity/${{ matrix.provider }}.json" \
+            --out-markdown "artifacts/provider-parity/${{ matrix.provider }}.md"
+      - name: Upload provider parity artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-parity-${{ matrix.provider }}
+          path: artifacts/provider-parity/
+
+  provider-parity-summary:
+    runs-on: ubuntu-latest
+    needs: provider-parity-matrix
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: provider-parity-*
+          path: artifacts/provider-parity
+          merge-multiple: true
+      - name: Build parity summary matrix view
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/provider-parity")
+          rows = []
+          for path in sorted(root.glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, list):
+              rows.extend(payload)
+
+          lines = [
+            "# Provider Parity Matrix (CI Summary)",
+            "",
+            "| Provider | Status | Chat | Embeddings | Streaming | Chat shape | Embeddings shape | Stream shape |",
+            "|---|---|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in rows:
+            lines.append(
+              f"| {item['provider']} | {item['status']} | "
+              f"{'yes' if item['chat_supported'] else 'no'} | "
+              f"{'yes' if item['embeddings_supported'] else 'no'} | "
+              f"{'yes' if item['streaming_supported'] else 'no'} | "
+              f"{'yes' if item['chat_shape_ok'] else 'no'} | "
+              f"{'yes' if item['embeddings_shape_ok'] else 'no'} | "
+              f"{'yes' if item['stream_shape_ok'] else 'no'} |"
+            )
+          lines.append("")
+
+          summary = "\n".join(lines).strip() + "\n"
+          out_path = root / "matrix-summary.md"
+          out_path.write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+      - name: Publish job summary
+        run: cat artifacts/provider-parity/matrix-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-parity-summary
+          path: artifacts/provider-parity/matrix-summary.md

@@ -210,7 +210,9 @@ def _build_webhook_dispatcher(settings: Settings) -> WebhookDispatcher | None:
         max_retries=settings.webhook_max_retries,
         backoff_base_s=settings.webhook_backoff_base_s,
         backoff_max_s=settings.webhook_backoff_max_s,
+        dead_letter_backend=settings.webhook_dead_letter_backend_normalized,
         dead_letter_path=settings.webhook_dead_letter_path,
+        dead_letter_retention_days=settings.webhook_dead_letter_retention_days,
     )
 
 

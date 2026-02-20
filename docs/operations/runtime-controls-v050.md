@@ -46,23 +46,34 @@ SRG_WEBHOOK_ENABLED=true
 SRG_WEBHOOK_BACKOFF_BASE_S=0.2
 SRG_WEBHOOK_BACKOFF_MAX_S=2.0
 SRG_WEBHOOK_MAX_RETRIES=2
-SRG_WEBHOOK_DEAD_LETTER_PATH=artifacts/audit/webhook_dead_letter.jsonl
+SRG_WEBHOOK_DEAD_LETTER_BACKEND=sqlite
+SRG_WEBHOOK_DEAD_LETTER_PATH=artifacts/audit/webhook_dead_letter.db
+SRG_WEBHOOK_DEAD_LETTER_RETENTION_DAYS=30
 ```
 
 Behavior:
 - Retryable delivery failures (`429`, `5xx`, transport errors) are retried with exponential backoff.
 - Requests include `X-SRG-Idempotency-Key`.
-- Failed events are written to dead-letter JSONL for replay.
+- Failed events are written to dead-letter storage (`sqlite` default, `jsonl` optional) for replay.
+- Retention pruning runs on write and tracks pruned record counts.
+- Prometheus counters:
+  - `srg_webhook_deliveries_total{event_type,success}`
+  - `srg_webhook_delivery_attempts_total{event_type}`
+  - `srg_webhook_dead_letter_records_total{backend,event_type}`
+  - `srg_webhook_dead_letter_pruned_total{backend}`
 
 Replay example:
 
 ```bash
 python scripts/replay_webhook_dead_letter.py \
-  --dead-letter artifacts/audit/webhook_dead_letter.jsonl \
+  --dead-letter artifacts/audit/webhook_dead_letter.db \
+  --dead-letter-backend sqlite \
   --event-types policy_denied,budget_exceeded \
   --max-events 50 \
   --report-out artifacts/audit/webhook_replay_report.json
 ```
+
+Replay reports now include per-event replay metrics under `summary.by_event`.
 
 ## 4) Fault-Injection Benchmark Scenarios
 
