@@ -51,8 +51,6 @@ kubectl -n "$NAMESPACE" rollout restart deployment/"$RELEASE_NAME"-sovereign-rag
 kubectl -n "$NAMESPACE" rollout status deployment/"$RELEASE_NAME"-sovereign-rag-gateway --timeout=180s
 kubectl -n "$NAMESPACE" get pods -o wide
 
-POD_NAME="$(kubectl -n "$NAMESPACE" get pod -l app.kubernetes.io/instance="$RELEASE_NAME" -o jsonpath='{.items[0].metadata.name}')"
-
 kubectl -n "$NAMESPACE" port-forward svc/"$RELEASE_NAME"-sovereign-rag-gateway 18080:80 >/tmp/srg-port-forward.log 2>&1 &
 PF_PID=$!
 trap 'kill $PF_PID >/dev/null 2>&1 || true; rm -f "$VALUES_FILE"' EXIT
@@ -146,6 +144,13 @@ if error.get("code") != "budget_exceeded":
 PY
 
 sleep 2
+POD_NAME="$(kubectl -n "$NAMESPACE" get pod -l app.kubernetes.io/instance="$RELEASE_NAME" -o json \
+  | python3 -c 'import json,sys; data=json.load(sys.stdin); pods=[p for p in data.get("items", []) if not p.get("metadata", {}).get("deletionTimestamp") and p.get("status", {}).get("phase")=="Running"]; pods.sort(key=lambda p: p.get("metadata", {}).get("creationTimestamp","")); print(pods[-1]["metadata"]["name"] if pods else "")')"
+if [[ -z "$POD_NAME" ]]; then
+  echo "Failed to resolve running gateway pod for dead-letter validation"
+  kubectl -n "$NAMESPACE" get pods -o wide || true
+  exit 1
+fi
 DLQ_LINES="$(kubectl -n "$NAMESPACE" exec "$POD_NAME" -- sh -c 'if [ -f /tmp/audit/webhook_dead_letter.jsonl ]; then wc -l < /tmp/audit/webhook_dead_letter.jsonl; else echo 0; fi' | tr -d '[:space:]')"
 if [[ "${DLQ_LINES:-0}" -lt 1 ]]; then
   echo "Expected webhook dead-letter entries, found $DLQ_LINES"
