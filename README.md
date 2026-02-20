@@ -831,8 +831,8 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Dead-letter replay CLI with deterministic summary/report output
 - [x] Benchmark trend regression gate (current vs checked-in baseline)
 - [x] SharePoint read-only connector (Graph API, policy-scoped retrieval)
-- [ ] Promote v0.5.0-alpha.1 release notes and tagged prerelease
-- [ ] Validate runtime-controls stack in kind smoke environment and publish weekly report
+- [x] Promote v0.5.0-alpha.1 release notes and tagged prerelease ([tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.5.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22216373015))
+- [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22207623171), [weekly report](docs/benchmarks/reports/weekly-2026-02-20.md))
 
 ## Licence
 
