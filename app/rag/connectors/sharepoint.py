@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
-from time import monotonic
+from collections.abc import Callable
+from datetime import UTC, datetime
+from time import monotonic, time
 from typing import Any
 
 import httpx
@@ -11,13 +13,121 @@ from app.rag.types import Document, DocumentChunk
 TOKEN_SPLIT_RE = re.compile(r"\W+")
 
 
+class ManagedIdentityTokenProvider:
+    """Fetches and caches Microsoft Graph tokens via Azure managed identity."""
+
+    def __init__(
+        self,
+        *,
+        endpoint: str = "http://169.254.169.254/metadata/identity/oauth2/token",
+        resource: str = "https://graph.microsoft.com/",
+        api_version: str = "2018-02-01",
+        client_id: str | None = None,
+        timeout_s: float = 3.0,
+        http_client: Any | None = None,
+    ) -> None:
+        normalized_endpoint = endpoint.strip()
+        if normalized_endpoint == "":
+            raise ValueError("endpoint must be non-empty")
+        normalized_resource = resource.strip()
+        if normalized_resource == "":
+            raise ValueError("resource must be non-empty")
+        normalized_api_version = api_version.strip()
+        if normalized_api_version == "":
+            raise ValueError("api_version must be non-empty")
+        normalized_client_id = client_id.strip() if isinstance(client_id, str) else None
+
+        self._endpoint = normalized_endpoint
+        self._resource = normalized_resource
+        self._api_version = normalized_api_version
+        self._client_id = normalized_client_id if normalized_client_id else None
+        self._http = http_client or httpx.Client(timeout=timeout_s)
+
+        self._cached_token: str | None = None
+        self._cached_until_monotonic: float = 0.0
+
+    def get_token(self) -> str:
+        now = monotonic()
+        if (
+            self._cached_token is not None
+            and now < self._cached_until_monotonic
+        ):
+            return self._cached_token
+
+        payload = self._request_token()
+        token = str(payload.get("access_token", "")).strip()
+        if token == "":
+            raise RuntimeError("Managed identity response missing access_token")
+
+        ttl_seconds = self._token_ttl_seconds(payload)
+        # Keep a small safety margin to avoid using near-expired tokens.
+        self._cached_token = token
+        self._cached_until_monotonic = now + max(ttl_seconds - 30.0, 30.0)
+        return token
+
+    def _request_token(self) -> dict[str, Any]:
+        params: dict[str, str] = {
+            "api-version": self._api_version,
+            "resource": self._resource,
+        }
+        if self._client_id:
+            params["client_id"] = self._client_id
+
+        response = self._http.get(
+            self._endpoint,
+            params=params,
+            headers={"Metadata": "true", "Accept": "application/json"},
+        )
+        if int(response.status_code) >= 400:
+            raise RuntimeError(
+                "Managed identity token request failed: "
+                f"{response.status_code} {response.text[:200]}"
+            )
+        parsed = response.json()
+        if not isinstance(parsed, dict):
+            raise RuntimeError("Managed identity token response must be an object")
+        return parsed
+
+    @staticmethod
+    def _token_ttl_seconds(payload: dict[str, Any]) -> float:
+        expires_in = payload.get("expires_in")
+        if expires_in is not None:
+            try:
+                parsed = float(str(expires_in).strip())
+                if parsed > 0:
+                    return parsed
+            except ValueError:
+                pass
+
+        expires_on = str(payload.get("expires_on", "")).strip()
+        if expires_on:
+            if expires_on.isdigit():
+                delta = float(expires_on) - time()
+                if delta > 0:
+                    return delta
+            else:
+                try:
+                    parsed_dt = datetime.fromisoformat(expires_on.replace("Z", "+00:00"))
+                    if parsed_dt.tzinfo is None:
+                        parsed_dt = parsed_dt.replace(tzinfo=UTC)
+                    delta = (parsed_dt - datetime.now(UTC)).total_seconds()
+                    if delta > 0:
+                        return delta
+                except ValueError:
+                    pass
+
+        # Fallback to short refresh interval when expiry info is missing.
+        return 300.0
+
+
 class SharePointConnector:
     """Read-only SharePoint retrieval connector via Microsoft Graph."""
 
     def __init__(
         self,
         site_id: str,
-        bearer_token: str,
+        bearer_token: str | None = None,
+        token_provider: Callable[[], str] | None = None,
         base_url: str = "https://graph.microsoft.com/v1.0",
         drive_id: str | None = None,
         allowed_path_prefixes: set[str] | None = None,
@@ -29,9 +139,13 @@ class SharePointConnector:
         normalized_site_id = site_id.strip()
         if normalized_site_id == "":
             raise ValueError("site_id must be non-empty")
-        normalized_token = bearer_token.strip()
-        if normalized_token == "":
-            raise ValueError("bearer_token must be non-empty")
+        normalized_token = (
+            bearer_token.strip() if isinstance(bearer_token, str) else ""
+        )
+        if token_provider is not None and normalized_token != "":
+            raise ValueError("Provide either bearer_token or token_provider, not both")
+        if token_provider is None and normalized_token == "":
+            raise ValueError("bearer_token must be non-empty when token_provider is not set")
 
         self._site_id = normalized_site_id
         self._base_url = base_url.rstrip("/")
@@ -47,10 +161,8 @@ class SharePointConnector:
             for prefix in (allowed_path_prefixes or set())
             if prefix.strip()
         }
-        self._headers = {
-            "Authorization": f"Bearer {normalized_token}",
-            "Accept": "application/json",
-        }
+        self._bearer_token = normalized_token if normalized_token else None
+        self._token_provider = token_provider
         self._http = http_client or httpx.Client(timeout=timeout_s)
 
         self._search_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
@@ -220,7 +332,7 @@ class SharePointConnector:
         response = self._http.get(
             f"{self._base_url}{path}",
             params=query_params,
-            headers=self._headers,
+            headers=self._auth_headers(),
         )
         if int(response.status_code) >= 400:
             raise RuntimeError(
@@ -232,7 +344,7 @@ class SharePointConnector:
         return parsed
 
     def _get_json_absolute(self, url: str) -> dict[str, Any]:
-        response = self._http.get(url, headers=self._headers)
+        response = self._http.get(url, headers=self._auth_headers())
         if int(response.status_code) >= 400:
             raise RuntimeError(
                 f"SharePoint API returned {response.status_code}: {response.text[:200]}"
@@ -257,6 +369,17 @@ class SharePointConnector:
         if self._drive_id:
             return f"/sites/{self._site_id}/drives/{self._drive_id}"
         return f"/sites/{self._site_id}/drive"
+
+    def _auth_headers(self) -> dict[str, str]:
+        token = self._bearer_token
+        if self._token_provider is not None:
+            token = self._token_provider().strip()
+        if token is None or token == "":
+            raise RuntimeError("SharePoint authentication token is empty")
+        return {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+        }
 
     def _path_allowed(self, metadata: dict[str, str]) -> bool:
         if not self._allowed_path_prefixes:

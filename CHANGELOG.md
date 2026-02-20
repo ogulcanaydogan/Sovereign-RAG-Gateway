@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.6.0-alpha.1 - 2026-02-20
+
+### Provider and Runtime Operations Hardening
+- Promoted provider parity checks as a CI release gate with persisted matrix artifacts for `http_openai`, `azure_openai`, and `anthropic`.
+- Hardened webhook dead-letter durability defaults around `sqlite` backend, retention pruning, and replay compatibility.
+- Added webhook replay/retention dashboard coverage with new Grafana panels for delivery attempts, dead-letter rates, and pruning trends.
+
+### Evidence Automation
+- Added scheduled weekly evidence report workflow plus manual dispatch support.
+- Added auto-maintained weekly reports index generation from benchmark/evidence report artifacts.
+- Updated workflow behavior so report generation succeeds even when repository policy blocks GitHub Actions from opening pull requests.
+
+### Enterprise Connector Expansion
+- Added SharePoint managed-identity authentication mode (Azure IMDS token acquisition) as an alternative to static bearer tokens.
+- Added configuration flags for managed-identity endpoint, resource, API version, optional client ID, and timeout.
+- Added unit and integration coverage for managed-identity path and bearer-mode validation behavior.
+
+### Release and Migration Assets
+- Added `docs/releases/v0.6.0-alpha.1.md` dossier with explicit migration notes from `v0.5.x`.
+- Updated Helm and Terraform default release/image versions to `0.6.0-alpha.1` / `v0.6.0-alpha.1`.
+
 ## v0.5.0 - 2026-02-20
 
 ### Streaming Budget Enforcement

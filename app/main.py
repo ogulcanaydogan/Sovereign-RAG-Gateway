@@ -24,7 +24,10 @@ from app.rag.connectors.filesystem import FilesystemConnector
 from app.rag.connectors.jira import JiraConnector
 from app.rag.connectors.postgres import PostgresPgvectorConnector
 from app.rag.connectors.s3 import S3Connector
-from app.rag.connectors.sharepoint import SharePointConnector
+from app.rag.connectors.sharepoint import (
+    ManagedIdentityTokenProvider,
+    SharePointConnector,
+)
 from app.rag.embeddings import (
     EmbeddingGenerator,
     HashEmbeddingGenerator,
@@ -238,7 +241,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="0.5.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="0.6.0-alpha.1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -298,18 +301,49 @@ def create_app() -> FastAPI:
                 cache_ttl_seconds=settings.rag_jira_cache_ttl_seconds,
             ),
         )
-    if settings.rag_sharepoint_site_id and settings.rag_sharepoint_bearer_token:
-        connector_registry.register(
-            "sharepoint",
-            SharePointConnector(
-                site_id=settings.rag_sharepoint_site_id,
-                bearer_token=settings.rag_sharepoint_bearer_token,
-                base_url=settings.rag_sharepoint_base_url,
-                drive_id=settings.rag_sharepoint_drive_id,
-                allowed_path_prefixes=settings.rag_sharepoint_allowed_path_prefix_set,
-                cache_ttl_seconds=settings.rag_sharepoint_cache_ttl_seconds,
-            ),
-        )
+    if settings.rag_sharepoint_site_id:
+        auth_mode = settings.rag_sharepoint_auth_mode_normalized
+        if auth_mode == "managed_identity":
+            token_provider = ManagedIdentityTokenProvider(
+                endpoint=settings.rag_sharepoint_managed_identity_endpoint,
+                resource=settings.rag_sharepoint_managed_identity_resource,
+                api_version=settings.rag_sharepoint_managed_identity_api_version,
+                client_id=settings.rag_sharepoint_managed_identity_client_id,
+                timeout_s=settings.rag_sharepoint_managed_identity_timeout_s,
+            )
+            connector_registry.register(
+                "sharepoint",
+                SharePointConnector(
+                    site_id=settings.rag_sharepoint_site_id,
+                    token_provider=token_provider.get_token,
+                    base_url=settings.rag_sharepoint_base_url,
+                    drive_id=settings.rag_sharepoint_drive_id,
+                    allowed_path_prefixes=settings.rag_sharepoint_allowed_path_prefix_set,
+                    cache_ttl_seconds=settings.rag_sharepoint_cache_ttl_seconds,
+                ),
+            )
+        elif auth_mode == "bearer_token":
+            if not settings.rag_sharepoint_bearer_token:
+                raise RuntimeError(
+                    "SRG_RAG_SHAREPOINT_BEARER_TOKEN is required when "
+                    "SRG_RAG_SHAREPOINT_AUTH_MODE=bearer_token"
+                )
+            connector_registry.register(
+                "sharepoint",
+                SharePointConnector(
+                    site_id=settings.rag_sharepoint_site_id,
+                    bearer_token=settings.rag_sharepoint_bearer_token,
+                    base_url=settings.rag_sharepoint_base_url,
+                    drive_id=settings.rag_sharepoint_drive_id,
+                    allowed_path_prefixes=settings.rag_sharepoint_allowed_path_prefix_set,
+                    cache_ttl_seconds=settings.rag_sharepoint_cache_ttl_seconds,
+                ),
+            )
+        else:
+            raise RuntimeError(
+                "Unsupported SRG_RAG_SHAREPOINT_AUTH_MODE value: "
+                f"{settings.rag_sharepoint_auth_mode}"
+            )
 
     provider_registry = _build_provider_registry(settings)
     primary_entry = provider_registry.get(settings.provider_name)

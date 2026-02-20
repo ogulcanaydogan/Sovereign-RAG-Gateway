@@ -79,3 +79,14 @@ def test_webhook_dead_letter_backend_defaults() -> None:
     settings = Settings()
     assert settings.webhook_dead_letter_backend_normalized == "sqlite"
     assert settings.webhook_dead_letter_retention_days == 30
+
+
+def test_sharepoint_auth_mode_normalized() -> None:
+    settings = Settings(rag_sharepoint_auth_mode=" Managed_Identity ")
+    assert settings.rag_sharepoint_auth_mode_normalized == "managed_identity"
+
+
+def test_sharepoint_managed_identity_defaults() -> None:
+    settings = Settings()
+    assert settings.rag_sharepoint_managed_identity_api_version == "2018-02-01"
+    assert settings.rag_sharepoint_managed_identity_resource == "https://graph.microsoft.com/"

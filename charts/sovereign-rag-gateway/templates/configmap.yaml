@@ -13,6 +13,18 @@ data:
   SRG_REDACTION_ENABLED: {{ .Values.env.redactionEnabled | quote }}
   SRG_RAG_ENABLED: {{ .Values.env.ragEnabled | quote }}
   SRG_RAG_ALLOWED_CONNECTORS: {{ .Values.env.ragAllowedConnectors | quote }}
+  SRG_RAG_SHAREPOINT_BASE_URL: {{ .Values.env.ragSharepointBaseUrl | quote }}
+  SRG_RAG_SHAREPOINT_SITE_ID: {{ .Values.env.ragSharepointSiteId | quote }}
+  SRG_RAG_SHAREPOINT_DRIVE_ID: {{ .Values.env.ragSharepointDriveId | quote }}
+  SRG_RAG_SHAREPOINT_AUTH_MODE: {{ .Values.env.ragSharepointAuthMode | quote }}
+  SRG_RAG_SHAREPOINT_BEARER_TOKEN: {{ .Values.env.ragSharepointBearerToken | quote }}
+  SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_ENDPOINT: {{ .Values.env.ragSharepointManagedIdentityEndpoint | quote }}
+  SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_RESOURCE: {{ .Values.env.ragSharepointManagedIdentityResource | quote }}
+  SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_API_VERSION: {{ .Values.env.ragSharepointManagedIdentityApiVersion | quote }}
+  SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_CLIENT_ID: {{ .Values.env.ragSharepointManagedIdentityClientId | quote }}
+  SRG_RAG_SHAREPOINT_MANAGED_IDENTITY_TIMEOUT_S: {{ .Values.env.ragSharepointManagedIdentityTimeoutS | quote }}
+  SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES: {{ .Values.env.ragSharepointAllowedPathPrefixes | quote }}
+  SRG_RAG_SHAREPOINT_CACHE_TTL_SECONDS: {{ .Values.env.ragSharepointCacheTtlSeconds | quote }}
   SRG_LOG_LEVEL: {{ .Values.env.logLevel | quote }}
   SRG_AUDIT_LOG_PATH: {{ .Values.env.auditLogPath | quote }}
   SRG_METRICS_ENABLED: {{ .Values.env.metricsEnabled | quote }}

@@ -36,7 +36,15 @@ class Settings(BaseSettings):
     rag_sharepoint_base_url: str = "https://graph.microsoft.com/v1.0"
     rag_sharepoint_site_id: str | None = None
     rag_sharepoint_drive_id: str | None = None
+    rag_sharepoint_auth_mode: str = "bearer_token"
     rag_sharepoint_bearer_token: str | None = None
+    rag_sharepoint_managed_identity_endpoint: str = (
+        "http://169.254.169.254/metadata/identity/oauth2/token"
+    )
+    rag_sharepoint_managed_identity_resource: str = "https://graph.microsoft.com/"
+    rag_sharepoint_managed_identity_api_version: str = "2018-02-01"
+    rag_sharepoint_managed_identity_client_id: str | None = None
+    rag_sharepoint_managed_identity_timeout_s: float = 3.0
     rag_sharepoint_allowed_path_prefixes: str = ""
     rag_sharepoint_cache_ttl_seconds: float = 60.0
     rag_embedding_dim: int = 16
@@ -117,6 +125,10 @@ class Settings(BaseSettings):
             for item in self.rag_sharepoint_allowed_path_prefixes.split(",")
             if item.strip()
         }
+
+    @property
+    def rag_sharepoint_auth_mode_normalized(self) -> str:
+        return self.rag_sharepoint_auth_mode.strip().lower()
 
     @property
     def budget_tenant_ceiling_map(self) -> dict[str, int]:
