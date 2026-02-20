@@ -55,7 +55,7 @@ def test_webhook_dispatcher_delivers_to_subscribed_endpoint(
     body = json.loads(str(captured[0]["content"]))
     assert body["event_id"].startswith("evt-")
     assert body["event_type"] == "policy_denied"
-    assert body["gateway_version"] == "0.4.0"
+    assert body["gateway_version"] == "0.5.0"
     assert "X-SRG-Idempotency-Key" in captured[0]["headers"]  # type: ignore[index]
 
 

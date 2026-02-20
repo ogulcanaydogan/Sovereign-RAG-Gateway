@@ -52,6 +52,25 @@ class StubProvider:
         messages: list[dict[str, str]],
         max_tokens: int | None,
     ) -> AsyncIterator[dict[str, object]]:
+        if model.startswith("error-timeout-stream"):
+            yield {
+                "id": f"chatcmpl-{uuid4().hex}",
+                "object": "chat.completion.chunk",
+                "created": int(time()),
+                "model": model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"role": "assistant", "content": "partial"},
+                        "finish_reason": None,
+                    }
+                ],
+            }
+            raise ProviderError(
+                status_code=502,
+                code="provider_timeout",
+                message="Provider hung mid-stream",
+            )
         response = await self.chat(model=model, messages=messages, max_tokens=max_tokens)
         content = ""
         choices_raw = response.get("choices")

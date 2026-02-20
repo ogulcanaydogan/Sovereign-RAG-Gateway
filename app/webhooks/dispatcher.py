@@ -40,7 +40,7 @@ import httpx
 
 logger = logging.getLogger("srg.webhooks")
 
-GATEWAY_VERSION = "0.4.0"
+GATEWAY_VERSION = "0.5.0"
 
 
 class WebhookEventType(Enum):

@@ -57,6 +57,13 @@ class BudgetTracker(Protocol):
     def summary(self, tenant_id: str) -> dict[str, object]:
         """Return budget summary for this tenant."""
 
+    def check_running(self, tenant_id: str, additional_tokens: int) -> bool:
+        """Return True if adding *additional_tokens* stays within the ceiling.
+
+        Unlike :meth:`check`, this never raises — it returns a bool for
+        efficiency in the streaming hot-path.
+        """
+
 
 @dataclass
 class UsageEntry:
@@ -145,6 +152,15 @@ class TokenBudgetTracker:
             cutoff = monotonic() - self._window_seconds
             bucket.prune(cutoff)
             return bucket.total_tokens()
+
+    def check_running(self, tenant_id: str, additional_tokens: int) -> bool:
+        """Return True if adding *additional_tokens* stays within the ceiling."""
+        ceiling = self.ceiling_for(tenant_id)
+        with self._lock:
+            bucket = self._buckets[tenant_id]
+            cutoff = monotonic() - self._window_seconds
+            bucket.prune(cutoff)
+            return bucket.total_tokens() + additional_tokens <= ceiling
 
     def remaining(self, tenant_id: str) -> int:
         """Return tokens remaining in budget for a tenant."""
@@ -258,6 +274,18 @@ class RedisTokenBudgetTracker:
 
     def usage(self, tenant_id: str) -> int:
         return self._current_usage(tenant_id)
+
+    def check_running(self, tenant_id: str, additional_tokens: int) -> bool:
+        """Return True if adding *additional_tokens* stays within the ceiling.
+
+        Returns ``False`` (fail-closed) when the Redis backend is unavailable.
+        """
+        ceiling = self.ceiling_for(tenant_id)
+        try:
+            current = self._current_usage(tenant_id)
+        except BudgetBackendError:
+            return False
+        return current + additional_tokens <= ceiling
 
     def summary(self, tenant_id: str) -> dict[str, object]:
         ceiling = self.ceiling_for(tenant_id)

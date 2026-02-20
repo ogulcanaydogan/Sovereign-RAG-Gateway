@@ -637,6 +637,9 @@ class ChatService:
             policy_decision_label = self._policy_decision_label(decision)
             stream_error: BaseException | None = None
             stream_status_code = 200
+            chunk_count = 0
+            budget_mid_stream_terminated = False
+            _BUDGET_CHECK_INTERVAL = 5
 
             try:
                 if first_chunk is not None:
@@ -724,6 +727,37 @@ class ChatService:
                             usage_completion_tokens = completion_raw
 
                     yield self._sse_event(chunk)
+
+                    chunk_count += 1
+                    if (
+                        self._budget_tracker is not None
+                        and chunk_count % _BUDGET_CHECK_INTERVAL == 0
+                    ):
+                        estimated_running = usage_prompt_tokens + max(
+                            usage_completion_tokens,
+                            len(" ".join(completion_parts).split()),
+                        )
+                        if not self._budget_tracker.check_running(
+                            tenant_id, estimated_running
+                        ):
+                            budget_mid_stream_terminated = True
+                            yield self._sse_event(
+                                {
+                                    "id": chunk_id or f"chatcmpl-{uuid4().hex}",
+                                    "object": "chat.completion.chunk",
+                                    "created": chunk_created,
+                                    "model": selected_model,
+                                    "choices": [
+                                        {
+                                            "index": 0,
+                                            "delta": {},
+                                            "finish_reason": "length",
+                                        }
+                                    ],
+                                }
+                            )
+                            yield "data: [DONE]\n\n"
+                            break
 
                 if citations and not saw_citations:
                     yield self._sse_event(
@@ -859,6 +893,8 @@ class ChatService:
                 )
                 if stream_error is not None:
                     audit_event["stream_error"] = type(stream_error).__name__
+                if budget_mid_stream_terminated:
+                    audit_event["budget_mid_stream_terminated"] = True
                 with self._span(
                     trace_id=request_id,
                     operation="audit.persist",
@@ -902,6 +938,7 @@ class ChatService:
                         "stream_error": type(stream_error).__name__
                         if stream_error
                         else None,
+                        "budget_mid_stream_terminated": budget_mid_stream_terminated,
                     },
                 )
                 if self._settings.metrics_enabled:

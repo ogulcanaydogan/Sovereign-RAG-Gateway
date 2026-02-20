@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.5.0 - 2026-02-20
+
+### Streaming Budget Enforcement
+- Added mid-stream budget enforcement with `check_running()` method on both in-memory and Redis budget trackers.
+- Streaming requests now check running token usage every N chunks and terminate gracefully with `finish_reason: "length"` if the tenant ceiling is exceeded.
+- Added `budget_mid_stream_terminated` audit field to distinguish mid-stream budget cuts from pre-request denials.
+- Redis `check_running()` returns `False` (fail-closed) when the backend is unavailable.
+
+### Resilience and Chaos Testing
+- Added comprehensive resilience test suite (`tests/integration/test_resilience.py`) covering 8 failure scenarios:
+  - provider error mid-stream (audit still written)
+  - budget backend unavailable (fail-closed 503)
+  - all providers exhausted in fallback chain
+  - OPA timeout in enforce mode (fail-closed 503)
+  - sequential budget exhaustion (accounting correctness)
+  - webhook endpoint unreachable (non-blocking, request succeeds)
+  - audit write failure non-streaming (502)
+  - audit write failure streaming (graceful, no crash)
+- Added `error-timeout-stream` stub model for streaming timeout simulation.
+
+### Version Sync
+- Bumped all version references to 0.5.0 across pyproject.toml, app/main.py, Chart.yaml, Terraform variables, and webhook dispatcher.
+
 ## v0.5.0-alpha.1 - 2026-02-19
 
 ### Enterprise Retrieval
