@@ -118,3 +118,111 @@ def test_redis_budget_tracker_raises_when_dependency_missing(
     monkeypatch.setattr("app.budget.tracker.redis", None)
     with pytest.raises(BudgetBackendError):
         RedisTokenBudgetTracker(redis_url="redis://localhost:6379/0")
+
+
+# --------------------------------------------------------------------------- #
+# check_running() — in-memory tracker
+# --------------------------------------------------------------------------- #
+
+
+def test_check_running_within_budget() -> None:
+    tracker = TokenBudgetTracker(default_ceiling=100, window_seconds=3600)
+    tracker.record("tenant-a", 20)
+    assert tracker.check_running("tenant-a", 30) is True
+
+
+def test_check_running_over_budget() -> None:
+    tracker = TokenBudgetTracker(default_ceiling=50, window_seconds=3600)
+    tracker.record("tenant-a", 45)
+    assert tracker.check_running("tenant-a", 10) is False
+
+
+def test_check_running_at_exact_ceiling() -> None:
+    tracker = TokenBudgetTracker(default_ceiling=50, window_seconds=3600)
+    tracker.record("tenant-a", 40)
+    assert tracker.check_running("tenant-a", 10) is True
+
+
+# --------------------------------------------------------------------------- #
+# check_running() — Redis tracker
+# --------------------------------------------------------------------------- #
+
+
+def test_redis_check_running_over_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    storage: dict[str, list[tuple[float, str]]] = {}
+
+    class _Pipeline:
+        def __init__(self, client) -> None:  # type: ignore[no-untyped-def]
+            self._client = client
+            self._ops: list[tuple[str, tuple[object, ...]]] = []
+
+        def zadd(self, key: str, mapping: dict[str, float]):  # type: ignore[no-untyped-def]
+            self._ops.append(("zadd", (key, mapping)))
+            return self
+
+        def expire(self, key: str, ttl_seconds: int):  # type: ignore[no-untyped-def]
+            self._ops.append(("expire", (key, ttl_seconds)))
+            return self
+
+        def execute(self):  # type: ignore[no-untyped-def]
+            for op, args in self._ops:
+                getattr(self._client, op)(*args)
+            return []
+
+    class _FakeRedisClient:
+        def ping(self) -> bool:
+            return True
+
+        def pipeline(self) -> _Pipeline:
+            return _Pipeline(self)
+
+        def zadd(self, key: str, mapping: dict[str, float]) -> int:
+            entries = storage.setdefault(key, [])
+            for member, score in mapping.items():
+                entries.append((score, member))
+            return len(mapping)
+
+        def expire(self, key: str, ttl_seconds: int) -> bool:
+            _ = key, ttl_seconds
+            return True
+
+        def zremrangebyscore(self, key: str, min_score: float, max_score: float) -> int:
+            entries = storage.get(key, [])
+            remaining = [
+                (score, member)
+                for score, member in entries
+                if not (min_score <= score <= max_score)
+            ]
+            removed = len(entries) - len(remaining)
+            storage[key] = remaining
+            return removed
+
+        def zrangebyscore(self, key: str, min_score: float, max_score: str) -> list[str]:
+            entries = storage.get(key, [])
+            upper = float("inf") if max_score == "+inf" else float(max_score)
+            return [
+                member
+                for score, member in sorted(entries, key=lambda item: item[0])
+                if min_score <= score <= upper
+            ]
+
+    class _FakeRedisFactory:
+        @staticmethod
+        def from_url(url: str, decode_responses: bool = True) -> _FakeRedisClient:
+            _ = url, decode_responses
+            return _FakeRedisClient()
+
+    class _FakeRedisModule:
+        Redis = _FakeRedisFactory
+
+    monkeypatch.setattr("app.budget.tracker.redis", _FakeRedisModule())
+
+    tracker = RedisTokenBudgetTracker(
+        redis_url="redis://localhost:6379/0",
+        default_ceiling=50,
+        window_seconds=3600,
+        key_prefix="test:budget",
+    )
+    tracker.record("tenant-a", 45)
+    assert tracker.check_running("tenant-a", 10) is False
+    assert tracker.check_running("tenant-a", 5) is True

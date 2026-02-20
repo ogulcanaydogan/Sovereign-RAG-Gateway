@@ -169,6 +169,8 @@
       "type": "integer",
       "minimum": 0
     },
+    "stream_error": {"type": "string"},
+    "budget_mid_stream_terminated": {"type": "boolean"},
     "payload_hash": {"type": "string"},
     "prev_hash": {"type": "string"},
     "created_at": {
