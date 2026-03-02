@@ -1,9 +1,13 @@
+from hashlib import sha256
+from pathlib import Path
+
 import pytest
 
 from scripts.check_release_assets import (
     ReleaseAssetCheck,
     check_release_payload,
     parse_expected_assets,
+    verify_bundle_sha256,
 )
 
 
@@ -14,13 +18,34 @@ def _payload(*, prerelease: bool = False, draft: bool = False) -> dict[str, obje
         "prerelease": prerelease,
         "draft": draft,
         "assets": [
-            {"name": "bundle.json"},
-            {"name": "bundle.md"},
-            {"name": "bundle.sha256"},
-            {"name": "bundle.sig"},
-            {"name": "events.jsonl"},
-            {"name": "release-evidence-metadata.json"},
-            {"name": "sbom.spdx.json"},
+            {
+                "name": "bundle.json",
+                "browser_download_url": "https://example.test/bundle.json",
+            },
+            {
+                "name": "bundle.md",
+                "browser_download_url": "https://example.test/bundle.md",
+            },
+            {
+                "name": "bundle.sha256",
+                "browser_download_url": "https://example.test/bundle.sha256",
+            },
+            {
+                "name": "bundle.sig",
+                "browser_download_url": "https://example.test/bundle.sig",
+            },
+            {
+                "name": "events.jsonl",
+                "browser_download_url": "https://example.test/events.jsonl",
+            },
+            {
+                "name": "release-evidence-metadata.json",
+                "browser_download_url": "https://example.test/release-evidence-metadata.json",
+            },
+            {
+                "name": "sbom.spdx.json",
+                "browser_download_url": "https://example.test/sbom.spdx.json",
+            },
         ],
     }
 
@@ -47,6 +72,10 @@ def test_check_release_payload_success() -> None:
     assert result.prerelease is False
     assert result.draft is False
     assert result.missing_assets == set()
+    assert (
+        result.asset_download_urls["bundle.json"]
+        == "https://example.test/bundle.json"
+    )
 
 
 def test_check_release_payload_missing_assets_detected() -> None:
@@ -63,3 +92,48 @@ def test_check_release_payload_missing_assets_detected() -> None:
 def test_check_release_payload_rejects_invalid_shape() -> None:
     with pytest.raises(ValueError, match="tag_name"):
         check_release_payload({"assets": []}, expected_assets={"bundle.json"})
+
+
+def test_verify_bundle_sha256_ok(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text('{"ok":true}', encoding="utf-8")
+    expected = sha256(bundle_path.read_bytes()).hexdigest()
+    digest_path = tmp_path / "bundle.sha256"
+    digest_path.write_text(expected + "\n", encoding="utf-8")
+
+    valid, expected_hash, actual_hash, legacy_mode = verify_bundle_sha256(
+        bundle_path, digest_path
+    )
+    assert valid is True
+    assert legacy_mode is False
+    assert expected_hash == actual_hash
+
+
+def test_verify_bundle_sha256_mismatch(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text('{"ok":false}', encoding="utf-8")
+    digest_path = tmp_path / "bundle.sha256"
+    digest_path.write_text("0" * 64 + "\n", encoding="utf-8")
+
+    valid, expected_hash, actual_hash, legacy_mode = verify_bundle_sha256(
+        bundle_path, digest_path
+    )
+    assert valid is False
+    assert legacy_mode is False
+    assert expected_hash != actual_hash
+
+
+def test_verify_bundle_sha256_legacy_newline_compat(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    payload = '{"ok":"legacy"}\n'
+    bundle_path.write_text(payload, encoding="utf-8")
+    expected = sha256(payload.rstrip("\n").encode("utf-8")).hexdigest()
+    digest_path = tmp_path / "bundle.sha256"
+    digest_path.write_text(expected + "\n", encoding="utf-8")
+
+    valid, expected_hash, actual_hash, legacy_mode = verify_bundle_sha256(
+        bundle_path, digest_path
+    )
+    assert valid is True
+    assert legacy_mode is True
+    assert expected_hash == actual_hash

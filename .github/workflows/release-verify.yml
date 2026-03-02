@@ -24,4 +24,5 @@ jobs:
         run: |
           python scripts/check_release_assets.py \
             --repo "${GITHUB_REPOSITORY}" \
-            --latest
+            --latest \
+            --verify-bundle-integrity

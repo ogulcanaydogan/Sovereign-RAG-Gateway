@@ -801,7 +801,7 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
-| [`scripts/check_release_assets.py`](scripts/check_release_assets.py) | Release artifact integrity verifier (evidence + SBOM) |
+| [`scripts/check_release_assets.py`](scripts/check_release_assets.py) | Release artifact integrity verifier (presence + bundle SHA-256, optional signature) |
 | [`deploy/terraform/README.md`](deploy/terraform/README.md) | Terraform EKS module usage and secure defaults |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | Previous release notes (v0.3.0) |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | Previous release notes (v0.2.0) |
