@@ -30,4 +30,6 @@ def test_generate_release_evidence_artifacts(tmp_path: Path) -> None:
     assert Path(metadata["bundle_path"]).exists()
     assert Path(metadata["bundle_signature_path"]).exists()
     assert metadata["signature_verified"] == "True"
+    assert metadata["public_key_asset"] == "release-evidence-public.pem"
+    assert Path(metadata["public_key_path"]).exists()
     assert Path(tmp_path / "release-evidence" / "release-evidence-metadata.json").exists()

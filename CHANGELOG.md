@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Release Evidence Verification Hardening
+- Extended `scripts/check_release_assets.py` with optional cryptographic checks:
+  - download/verify `bundle.sha256` against `bundle.json`
+  - optional detached signature verification with release public key asset
+- Updated `release-verify` workflow to enforce bundle SHA-256 verification on latest release.
+- Updated release evidence generation to publish `release-evidence-public.pem` inside release evidence artifacts for external signature verification in future releases.
+
 ## v0.6.0 - 2026-02-20
 
 ### GA Promotion

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -21,6 +22,8 @@ def generate_release_evidence(
     evidence_root = out_dir / "release-evidence"
     audit_log = evidence_root / "audit" / "events.jsonl"
     audit_log.parent.mkdir(parents=True, exist_ok=True)
+    exported_public_key = evidence_root / "release-evidence-public.pem"
+    shutil.copyfile(public_key, exported_public_key)
 
     os.environ["SRG_API_KEYS"] = "release-evidence-key"
     os.environ["SRG_AUDIT_LOG_PATH"] = str(audit_log)
@@ -72,7 +75,8 @@ def generate_release_evidence(
         "bundle_markdown_path": str(replay_result.markdown_path),
         "bundle_signature_path": str(replay_result.signature_path),
         "signature_verified": str(replay_result.signature_verified),
-        "public_key_path": str(public_key),
+        "public_key_path": str(exported_public_key),
+        "public_key_asset": exported_public_key.name,
     }
     metadata_path = evidence_root / "release-evidence-metadata.json"
     metadata_json = json.dumps(metadata, indent=2, ensure_ascii=True) + "\n"
