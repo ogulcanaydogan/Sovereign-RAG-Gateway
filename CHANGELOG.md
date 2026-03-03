@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Release Automation
+- Updated `.github/workflows/release.yml` to set GitHub release prerelease state automatically from tag suffix (`contains(github.ref_name, '-')`), preventing prerelease/GA flag drift on tagged releases.
+
 ## v0.7.0-alpha.1 - 2026-03-03
 
 ### Release Evidence Verification Hardening

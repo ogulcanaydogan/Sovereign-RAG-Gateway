@@ -106,6 +106,7 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           body_path: artifacts/release-notes.md
           files: |
             artifacts/sbom.spdx.json
