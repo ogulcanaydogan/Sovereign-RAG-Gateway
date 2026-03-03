@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.7.0-alpha.1 |
+| Current version | 0.7.0-alpha.2 |
 
 ### Quality and Contracts
 
@@ -792,13 +792,14 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/compliance-control-mapping.md`](docs/operations/compliance-control-mapping.md) | Technical control-to-evidence mapping |
 | [`docs/operations/incident-replay-runbook.md`](docs/operations/incident-replay-runbook.md) | Request-level replay and signed evidence procedure |
 | [`docs/operations/secrets-rotation-runbook.md`](docs/operations/secrets-rotation-runbook.md) | Secret rotation and emergency revocation |
+| [`docs/operations/offline-evidence-signature-verification.md`](docs/operations/offline-evidence-signature-verification.md) | Offline SHA/signature verification for release evidence bundles |
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) | Current stable release notes (v0.6.0) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.7.0-alpha.1.md`](docs/releases/v0.7.0-alpha.1.md) | Latest prerelease notes (v0.7.0-alpha.1) |
-| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | Previous prerelease notes (v0.6.0-alpha.1) |
+| [`docs/releases/v0.7.0-alpha.2.md`](docs/releases/v0.7.0-alpha.2.md) | Latest prerelease notes (v0.7.0-alpha.2) |
+| [`docs/releases/v0.7.0-alpha.1.md`](docs/releases/v0.7.0-alpha.1.md) | Previous prerelease notes (v0.7.0-alpha.1) |
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
@@ -867,10 +868,10 @@ This project makes narrow, testable claims — not aspirational ones:
 
 ### Next (v0.7.0-alpha.2)
 - [x] Auto-mark GitHub prerelease status from semver tag suffix in release workflow (`vX.Y.Z-*` -> prerelease true)
-- [ ] Add historical release-integrity sweep mode (validate last N tags, not only latest)
-- [ ] Enforce release-verify run as a required status check before GA promotion tags
-- [ ] Publish operator runbook for offline evidence signature verification
-- [ ] Add release metadata drift check (tag semver prerelease vs GitHub release prerelease flag)
+- [x] Add historical release-integrity sweep mode (validate last N tags, not only latest) ([workflow](.github/workflows/release-verify.yml), [script](scripts/check_release_assets.py))
+- [x] Enforce release-verify run as a required status check before GA promotion tags ([workflow](.github/workflows/release.yml), [script](scripts/check_ga_release_gate.py))
+- [x] Publish operator runbook for offline evidence signature verification ([runbook](docs/operations/offline-evidence-signature-verification.md))
+- [x] Add release metadata drift check (tag semver prerelease vs GitHub release prerelease flag) ([workflow](.github/workflows/release-verify.yml), [script](scripts/check_release_assets.py))
 
 ## Licence
 
