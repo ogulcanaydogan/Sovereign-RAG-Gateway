@@ -877,11 +877,18 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22602966738), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22603006187), [weekly report](docs/benchmarks/reports/weekly-2026-03-03.md))
 
 ### Next (v0.7.0)
-- [ ] Promote `v0.7.0-rc1` prerelease dossier and tagged release
-- [ ] Complete stabilization window evidence (`deploy-smoke` x3 success, `release-verify` x2 success, CI/terraform/benchmark trend green)
-- [ ] Promote `v0.7.0` GA release with same-commit `release-verify` proof
-- [ ] Publish GA weekly report with release/deploy/verify run references
-- [ ] Open `Next (v0.8.0-alpha.1)` backlog (max 5 measurable items)
+- [x] Promote `v0.7.0-rc1` prerelease dossier and tagged release ([dossier](docs/releases/v0.7.0-rc1.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.7.0-rc1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615083310))
+- [x] Complete stabilization window evidence (`deploy-smoke` x3 success, `release-verify` x2 success, CI/terraform/benchmark trend green) ([deploy-smoke](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615070145), [release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615333208), [ci](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615070147), [terraform](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615070135))
+- [x] Promote `v0.7.0` GA release with same-commit `release-verify` proof ([dossier](docs/releases/v0.7.0.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.7.0), [same-commit verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615333208), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22615360166))
+- [x] Publish GA weekly report with release/deploy/verify run references ([weekly report](docs/benchmarks/reports/weekly-2026-03-03.md))
+- [x] Open `Next (v0.8.0-alpha.1)` backlog (max 5 measurable items)
+
+### Next (v0.8.0-alpha.1)
+- [ ] Add automated stabilization-window evidence script with JSON output (`deploy-smoke`/`release-verify`/`ci`/`terraform` counts + pass/fail).
+- [ ] Add GA gate integration test that fails when same-commit `release-verify` is absent for `vX.Y.Z` tags.
+- [ ] Add release-evidence artifact contract check for scheduled drift detection (asset presence + signature/digest parity).
+- [ ] Add operator-facing release verification dashboard snapshot generation to weekly evidence pipeline.
+- [ ] Add one-command rollback drill (`v0.7.0` -> previous stable) validation in kind smoke environment with published report.
 
 ## Licence
 
