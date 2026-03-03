@@ -872,6 +872,8 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Enforce release-verify run as a required status check before GA promotion tags ([workflow](.github/workflows/release.yml), [script](scripts/check_ga_release_gate.py))
 - [x] Publish operator runbook for offline evidence signature verification ([runbook](docs/operations/offline-evidence-signature-verification.md))
 - [x] Add release metadata drift check (tag semver prerelease vs GitHub release prerelease flag) ([workflow](.github/workflows/release-verify.yml), [script](scripts/check_release_assets.py))
+- [x] Promote `v0.7.0-alpha.2` prerelease dossier and tagged release ([dossier](docs/releases/v0.7.0-alpha.2.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.7.0-alpha.2), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22602963004))
+- [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22602966738), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22603006187), [weekly report](docs/benchmarks/reports/weekly-2026-03-03.md))
 
 ## Licence
 
