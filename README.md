@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.7.0-alpha.2 |
+| Current version | 0.7.0-rc1 |
 
 ### Quality and Contracts
 
@@ -798,8 +798,8 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) | Current stable release notes (v0.6.0) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.7.0-alpha.2.md`](docs/releases/v0.7.0-alpha.2.md) | Latest prerelease notes (v0.7.0-alpha.2) |
-| [`docs/releases/v0.7.0-alpha.1.md`](docs/releases/v0.7.0-alpha.1.md) | Previous prerelease notes (v0.7.0-alpha.1) |
+| [`docs/releases/v0.7.0-rc1.md`](docs/releases/v0.7.0-rc1.md) | Latest prerelease notes (v0.7.0-rc1) |
+| [`docs/releases/v0.7.0-alpha.2.md`](docs/releases/v0.7.0-alpha.2.md) | Previous prerelease notes (v0.7.0-alpha.2) |
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
@@ -874,6 +874,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Add release metadata drift check (tag semver prerelease vs GitHub release prerelease flag) ([workflow](.github/workflows/release-verify.yml), [script](scripts/check_release_assets.py))
 - [x] Promote `v0.7.0-alpha.2` prerelease dossier and tagged release ([dossier](docs/releases/v0.7.0-alpha.2.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.7.0-alpha.2), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22602963004))
 - [x] Validate runtime-controls stack in kind smoke environment and publish weekly report ([deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22602966738), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22603006187), [weekly report](docs/benchmarks/reports/weekly-2026-03-03.md))
+
+### Next (v0.7.0)
+- [ ] Promote `v0.7.0-rc1` prerelease dossier and tagged release
+- [ ] Complete stabilization window evidence (`deploy-smoke` x3 success, `release-verify` x2 success, CI/terraform/benchmark trend green)
+- [ ] Promote `v0.7.0` GA release with same-commit `release-verify` proof
+- [ ] Publish GA weekly report with release/deploy/verify run references
+- [ ] Open `Next (v0.8.0-alpha.1)` backlog (max 5 measurable items)
 
 ## Licence
 

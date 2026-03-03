@@ -1,0 +1,52 @@
+name: ga-readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release-readiness:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Verify required workflows exist
+        run: |
+          uv run python scripts/check_required_workflows.py \
+            --repo "${GITHUB_REPOSITORY}"
+
+      - name: Verify latest 10 releases (GA readiness sweep)
+        run: |
+          uv run python scripts/check_release_assets.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --latest-count 10 \
+            --verify-bundle-integrity \
+            --verify-signature \
+            --require-public-key \
+            --allow-legacy-evidence-gap-before-tag v0.3.0 \
+            --allow-legacy-public-key-gap-before-tag v0.7.0-alpha.1 \
+            --enforce-prerelease-flag-parity \
+            --json-report artifacts/ga-readiness-release-sweep.json
+
+      - name: Upload GA readiness sweep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ga-readiness-release-sweep-${{ github.run_id }}
+          path: artifacts/ga-readiness-release-sweep.json
