@@ -1,3 +1,4 @@
+import subprocess
 from hashlib import sha256
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from scripts.check_release_assets import (
     check_release_payload,
     parse_expected_assets,
     verify_bundle_sha256,
+    verify_bundle_signature,
 )
 
 
@@ -137,3 +139,80 @@ def test_verify_bundle_sha256_legacy_newline_compat(tmp_path: Path) -> None:
     assert valid is True
     assert legacy_mode is True
     assert expected_hash == actual_hash
+
+
+def test_verify_bundle_signature_ok(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text('{"message":"signed"}\n', encoding="utf-8")
+    private_key = tmp_path / "private.pem"
+    public_key = tmp_path / "public.pem"
+    signature = tmp_path / "bundle.sig"
+
+    subprocess.run(
+        ["openssl", "genrsa", "-out", str(private_key), "2048"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["openssl", "rsa", "-in", str(private_key), "-pubout", "-out", str(public_key)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "dgst",
+            "-sha256",
+            "-sign",
+            str(private_key),
+            "-out",
+            str(signature),
+            str(bundle_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert verify_bundle_signature(bundle_path, signature, public_key) is True
+
+
+def test_verify_bundle_signature_tampered_bundle_fails(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text('{"message":"signed"}\n', encoding="utf-8")
+    private_key = tmp_path / "private.pem"
+    public_key = tmp_path / "public.pem"
+    signature = tmp_path / "bundle.sig"
+
+    subprocess.run(
+        ["openssl", "genrsa", "-out", str(private_key), "2048"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["openssl", "rsa", "-in", str(private_key), "-pubout", "-out", str(public_key)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "dgst",
+            "-sha256",
+            "-sign",
+            str(private_key),
+            "-out",
+            str(signature),
+            str(bundle_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    bundle_path.write_text('{"message":"tampered"}\n', encoding="utf-8")
+    assert verify_bundle_signature(bundle_path, signature, public_key) is False

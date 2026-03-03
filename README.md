@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.6.0 |
+| Current version | 0.7.0-alpha.1 |
 
 ### Quality and Contracts
 
@@ -797,7 +797,8 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) | Current stable release notes (v0.6.0) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | Latest prerelease notes (v0.6.0-alpha.1) |
+| [`docs/releases/v0.7.0-alpha.1.md`](docs/releases/v0.7.0-alpha.1.md) | Latest prerelease notes (v0.7.0-alpha.1) |
+| [`docs/releases/v0.6.0-alpha.1.md`](docs/releases/v0.6.0-alpha.1.md) | Previous prerelease notes (v0.6.0-alpha.1) |
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
 | [`docs/releases/v0.5.0-alpha.1.md`](docs/releases/v0.5.0-alpha.1.md) | Previous prerelease notes (v0.5.0-alpha.1) |
 | [`docs/releases/v0.4.0-rc1.md`](docs/releases/v0.4.0-rc1.md) | Previous release candidate notes (v0.4.0-rc1) |
@@ -856,6 +857,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Auto-maintain `docs/benchmarks/reports/index.md` from weekly report artifacts ([index script](scripts/update_weekly_reports_index.py), [index](docs/benchmarks/reports/index.md))
 - [x] Add SharePoint managed-identity authentication mode (tokenless runtime credential path) ([connector](app/rag/connectors/sharepoint.py), [ops guide](docs/operations/sharepoint-connector.md))
 - [x] Ship `v0.6.0` release dossier with migration notes from `v0.5.x` ([dossier](docs/releases/v0.6.0.md))
+
+### Next (v0.7.0-alpha.1)
+- [ ] Promote `v0.7.0-alpha.1` prerelease dossier and tagged release (`docs/releases/v0.7.0-alpha.1.md`)
+- [ ] Enforce strict release verification (`bundle.sha256` + detached signature + required public key) in `release-verify` workflow
+- [ ] Publish release evidence public key artifact for external signature verification (`release-evidence-public.pem`)
+- [ ] Add tamper tests for signature verification failure behavior (`tests/unit/test_check_release_assets.py`)
+- [ ] Publish weekly runtime-controls/release-integrity validation report (`docs/benchmarks/reports/weekly-2026-03-03.md`)
 
 ## Licence
 
