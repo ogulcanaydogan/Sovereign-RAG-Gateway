@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## v0.7.0-rc1 - 2026-03-03
+
+### GA Readiness Guardrails
+- Added `ga-readiness` workflow to validate release posture on PR/push/manual runs.
+- Added `scripts/check_required_workflows.py` to enforce required workflow inventory:
+  - `ci`
+  - `deploy-smoke`
+  - `terraform-validate`
+  - `evidence-replay-smoke`
+  - `release-verify`
+- Added unit coverage for required workflow checks (`tests/unit/test_check_required_workflows.py`).
+
+### Release Integrity
+- Kept historical strict sweep checks (`latest-count=10`) and prerelease parity enforcement in verification path.
+- Kept GA publish gate requirement: same-commit `release-verify` success for `vX.Y.Z` tags.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.7.0-rc1` / `v0.7.0-rc1`.
+- Added release dossier at `docs/releases/v0.7.0-rc1.md`.
+
 ## v0.7.0-alpha.2 - 2026-03-03
 
 ### CI Stabilization
