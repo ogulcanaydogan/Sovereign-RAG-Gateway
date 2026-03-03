@@ -25,4 +25,6 @@ jobs:
           python scripts/check_release_assets.py \
             --repo "${GITHUB_REPOSITORY}" \
             --latest \
-            --verify-bundle-integrity
+            --verify-bundle-integrity \
+            --verify-signature \
+            --require-public-key

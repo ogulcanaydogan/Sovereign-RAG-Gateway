@@ -1,13 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.7.0-alpha.1 - 2026-03-03
 
 ### Release Evidence Verification Hardening
 - Extended `scripts/check_release_assets.py` with optional cryptographic checks:
   - download/verify `bundle.sha256` against `bundle.json`
   - optional detached signature verification with release public key asset
-- Updated `release-verify` workflow to enforce bundle SHA-256 verification on latest release.
-- Updated release evidence generation to publish `release-evidence-public.pem` inside release evidence artifacts for external signature verification in future releases.
+- Updated `release-verify` workflow to enforce both bundle SHA-256 and detached signature verification on the latest release.
+- Updated release evidence generation to publish `release-evidence-public.pem` inside release evidence artifacts for external signature verification.
+- Added unit coverage for signature verification success and tampered-bundle failure cases.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.7.0-alpha.1` / `v0.7.0-alpha.1`.
+- Added prerelease dossier at `docs/releases/v0.7.0-alpha.1.md`.
 
 ## v0.6.0 - 2026-02-20
 
