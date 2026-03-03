@@ -815,7 +815,7 @@ wheels = [
 
 [[package]]
 name = "sovereign-rag-gateway"
-version = "0.1.0"
+version = "0.7.0a2"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

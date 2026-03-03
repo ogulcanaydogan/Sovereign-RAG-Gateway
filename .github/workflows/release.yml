@@ -43,6 +43,15 @@ jobs:
             --changelog CHANGELOG.md \
             --output artifacts/release-notes.md
 
+      - name: Enforce GA same-commit release-verify gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run python scripts/check_ga_release_gate.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --tag "${GITHUB_REF_NAME}" \
+            --required-workflow "release-verify"
+
       - name: Generate signed release evidence artifacts
         run: |
           openssl genrsa -out artifacts/release-evidence-private.pem 2048

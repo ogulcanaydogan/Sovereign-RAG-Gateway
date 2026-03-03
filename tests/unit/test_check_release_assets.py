@@ -4,18 +4,27 @@ from pathlib import Path
 
 import pytest
 
+import scripts.check_release_assets as release_assets
 from scripts.check_release_assets import (
     ReleaseAssetCheck,
+    _validate_release,
     check_release_payload,
+    compare_semver_tags,
+    fetch_release_payloads,
     parse_expected_assets,
     verify_bundle_sha256,
     verify_bundle_signature,
 )
 
 
-def _payload(*, prerelease: bool = False, draft: bool = False) -> dict[str, object]:
+def _payload(
+    *,
+    prerelease: bool = False,
+    draft: bool = False,
+    tag_name: str = "v0.6.0",
+) -> dict[str, object]:
     return {
-        "tag_name": "v0.6.0",
+        "tag_name": tag_name,
         "html_url": "https://example.test/release/v0.6.0",
         "prerelease": prerelease,
         "draft": draft,
@@ -94,6 +103,150 @@ def test_check_release_payload_missing_assets_detected() -> None:
 def test_check_release_payload_rejects_invalid_shape() -> None:
     with pytest.raises(ValueError, match="tag_name"):
         check_release_payload({"assets": []}, expected_assets={"bundle.json"})
+
+
+def test_fetch_release_payloads_latest_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    expected_payload = [
+        {"tag_name": "v0.7.0-alpha.1"},
+        {"tag_name": "v0.6.0"},
+    ]
+
+    def _fake_run(path: str, retries: int, retry_backoff_s: float) -> object:
+        assert "releases?per_page=2" in path
+        assert retries == 3
+        assert retry_backoff_s == 1.0
+        return expected_payload
+
+    monkeypatch.setattr(release_assets, "_run_gh_json", _fake_run)
+    payloads = fetch_release_payloads(
+        repo="org/repo",
+        tag="",
+        latest=False,
+        latest_count=2,
+        gh_retries=3,
+        gh_retry_backoff_s=1.0,
+    )
+    assert payloads == expected_payload
+
+
+def test_fetch_release_payloads_requires_single_selector() -> None:
+    with pytest.raises(ValueError, match="exactly one"):
+        fetch_release_payloads(
+            repo="org/repo",
+            tag="v0.6.0",
+            latest=True,
+            latest_count=0,
+            gh_retries=1,
+            gh_retry_backoff_s=0.0,
+        )
+
+
+def test_validate_release_prerelease_parity_mismatch() -> None:
+    release = check_release_payload(
+        _payload(tag_name="v0.7.0-alpha.1", prerelease=False),
+        expected_assets={"bundle.json"},
+    )
+    result = _validate_release(
+        release,
+        prerelease_mode="any",
+        allow_draft=True,
+        verify_bundle_integrity=False,
+        verify_signature=False,
+        public_key_asset="release-evidence-public.pem",
+        require_public_key=False,
+        download_timeout_s=1.0,
+        enforce_prerelease_flag_parity=True,
+        allow_legacy_evidence_gap_before_tag="",
+        allow_legacy_public_key_gap_before_tag="",
+        github_token=None,
+    )
+    assert result.passed is False
+    assert any("prerelease flag parity mismatch" in err for err in result.errors)
+
+
+def test_compare_semver_tags_orders_prerelease_before_ga() -> None:
+    assert compare_semver_tags("v0.7.0-alpha.2", "v0.7.0") == -1
+    assert compare_semver_tags("v0.7.0", "v0.7.0-alpha.2") == 1
+    assert compare_semver_tags("v0.7.0-alpha.2", "v0.7.0-alpha.10") == -1
+
+
+def test_validate_release_legacy_public_key_gap_allows_pass() -> None:
+    release = check_release_payload(
+        _payload(tag_name="v0.6.0"),
+        expected_assets={"bundle.json", "bundle.sha256", "bundle.sig"},
+    )
+    result = _validate_release(
+        release,
+        prerelease_mode="any",
+        allow_draft=True,
+        verify_bundle_integrity=False,
+        verify_signature=True,
+        public_key_asset="release-evidence-public.pem",
+        require_public_key=True,
+        download_timeout_s=1.0,
+        enforce_prerelease_flag_parity=False,
+        allow_legacy_evidence_gap_before_tag="",
+        allow_legacy_public_key_gap_before_tag="v0.7.0-alpha.1",
+        github_token=None,
+    )
+    assert result.passed is True
+    assert result.legacy_gap_applied is True
+    assert result.signature_verified is False
+
+
+def test_validate_release_public_key_missing_without_legacy_gap_fails() -> None:
+    release = check_release_payload(
+        _payload(tag_name="v0.6.0"),
+        expected_assets={"bundle.json", "bundle.sha256", "bundle.sig"},
+    )
+    result = _validate_release(
+        release,
+        prerelease_mode="any",
+        allow_draft=True,
+        verify_bundle_integrity=False,
+        verify_signature=True,
+        public_key_asset="release-evidence-public.pem",
+        require_public_key=True,
+        download_timeout_s=1.0,
+        enforce_prerelease_flag_parity=False,
+        allow_legacy_evidence_gap_before_tag="",
+        allow_legacy_public_key_gap_before_tag="",
+        github_token=None,
+    )
+    assert result.passed is False
+    assert any("public key asset is missing" in err for err in result.errors)
+
+
+def test_validate_release_legacy_evidence_gap_skips_integrity_checks() -> None:
+    payload = _payload(tag_name="v0.2.0")
+    payload["assets"] = []
+    release = check_release_payload(
+        payload,
+        expected_assets={
+            "bundle.json",
+            "bundle.sha256",
+            "bundle.sig",
+            "release-evidence-public.pem",
+        },
+    )
+    result = _validate_release(
+        release,
+        prerelease_mode="any",
+        allow_draft=True,
+        verify_bundle_integrity=True,
+        verify_signature=True,
+        public_key_asset="release-evidence-public.pem",
+        require_public_key=True,
+        download_timeout_s=1.0,
+        enforce_prerelease_flag_parity=False,
+        allow_legacy_evidence_gap_before_tag="v0.3.0",
+        allow_legacy_public_key_gap_before_tag="v0.7.0-alpha.1",
+        github_token=None,
+    )
+    assert result.passed is True
+    assert result.legacy_gap_applied is True
+    assert result.integrity_verified is False
+    assert result.signature_verified is False
 
 
 def test_verify_bundle_sha256_ok(tmp_path: Path) -> None:

@@ -2,8 +2,32 @@
 
 ## Unreleased
 
-### Release Automation
-- Updated `.github/workflows/release.yml` to set GitHub release prerelease state automatically from tag suffix (`contains(github.ref_name, '-')`), preventing prerelease/GA flag drift on tagged releases.
+## v0.7.0-alpha.2 - 2026-03-03
+
+### CI Stabilization
+- Replaced `helm/kind-action@v1` in deploy smoke workflow with repository-managed kind installation logic using checksum validation and retry backoff.
+- Added `deploy/kind/install-kind.sh` to install kind deterministically with checksum verification.
+
+### Release Integrity Hardening
+- Extended `scripts/check_release_assets.py` with:
+  - `--latest-count` historical verification support
+  - `--json-report` summary output
+  - `--enforce-prerelease-flag-parity` metadata drift enforcement
+- Updated `release-verify` workflow to run strict latest checks plus latest-10 historical sweep and upload sweep artifact.
+- Added `scripts/check_ga_release_gate.py` to enforce same-commit `release-verify` success for GA tags.
+- Updated `.github/workflows/release.yml` to run GA gate checks before publish and to derive prerelease flag from tag semantics.
+
+### Operations Documentation
+- Added offline operator guide for SHA/signature evidence verification:
+  - `docs/operations/offline-evidence-signature-verification.md`
+
+### Runtime Foundation Continuity
+- Kept `v0.7.0-alpha.1` runtime-controls baseline unchanged (response redaction, token budgets, tracing, webhook durability).
+- Kept SharePoint connector support and managed-identity retrieval path unchanged while hardening CI/release integrity.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.7.0-alpha.2` / `v0.7.0-alpha.2`.
+- Added prerelease dossier at `docs/releases/v0.7.0-alpha.2.md`.
 
 ## v0.7.0-alpha.1 - 2026-03-03
 
