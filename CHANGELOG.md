@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v0.7.0 - 2026-03-03
+
+### GA Promotion
+- Promoted v0.7 hardening line to GA with no HTTP/API contract breakages.
+- Confirmed GA release artifact set includes signed evidence bundle and public verification key.
+
+### Release Integrity and Gates
+- Retained strict latest + latest10 release verification in `release-verify`.
+- Retained prerelease metadata parity enforcement in release verification path.
+- Retained same-commit `release-verify` requirement for GA tags in `release` workflow.
+- Added GA readiness workflow to continuously validate required workflow inventory and release sweep output.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.7.0` / `v0.7.0`.
+- Added stable release dossier at `docs/releases/v0.7.0.md`.
+
 ## v0.7.0-rc1 - 2026-03-03
 
 ### GA Readiness Guardrails
