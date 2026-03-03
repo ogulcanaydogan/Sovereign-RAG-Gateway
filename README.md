@@ -865,6 +865,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Add tamper tests for signature verification failure behavior ([tests/unit/test_check_release_assets.py](tests/unit/test_check_release_assets.py))
 - [x] Publish weekly runtime-controls/release-integrity validation report ([weekly report](docs/benchmarks/reports/weekly-2026-03-03.md), [deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22601763792))
 
+### Next (v0.7.0-alpha.2)
+- [x] Auto-mark GitHub prerelease status from semver tag suffix in release workflow (`vX.Y.Z-*` -> prerelease true)
+- [ ] Add historical release-integrity sweep mode (validate last N tags, not only latest)
+- [ ] Enforce release-verify run as a required status check before GA promotion tags
+- [ ] Publish operator runbook for offline evidence signature verification
+- [ ] Add release metadata drift check (tag semver prerelease vs GitHub release prerelease flag)
+
 ## Licence
 
 See [LICENSE](LICENSE) for details.
