@@ -13,6 +13,7 @@
 ### Version Alignment
 - Updated project/app/chart/Terraform defaults to `0.7.0-alpha.1` / `v0.7.0-alpha.1`.
 - Added prerelease dossier at `docs/releases/v0.7.0-alpha.1.md`.
+- Published weekly evidence report with runtime-controls smoke + release + strict release-verify links at `docs/benchmarks/reports/weekly-2026-03-03.md`.
 
 ## v0.6.0 - 2026-02-20
 

@@ -859,11 +859,11 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Ship `v0.6.0` release dossier with migration notes from `v0.5.x` ([dossier](docs/releases/v0.6.0.md))
 
 ### Next (v0.7.0-alpha.1)
-- [ ] Promote `v0.7.0-alpha.1` prerelease dossier and tagged release (`docs/releases/v0.7.0-alpha.1.md`)
-- [ ] Enforce strict release verification (`bundle.sha256` + detached signature + required public key) in `release-verify` workflow
-- [ ] Publish release evidence public key artifact for external signature verification (`release-evidence-public.pem`)
-- [ ] Add tamper tests for signature verification failure behavior (`tests/unit/test_check_release_assets.py`)
-- [ ] Publish weekly runtime-controls/release-integrity validation report (`docs/benchmarks/reports/weekly-2026-03-03.md`)
+- [x] Promote `v0.7.0-alpha.1` prerelease dossier and tagged release ([dossier](docs/releases/v0.7.0-alpha.1.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.7.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22601774845))
+- [x] Enforce strict release verification (`bundle.sha256` + detached signature + required public key) in `release-verify` workflow ([workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22601822166))
+- [x] Publish release evidence public key artifact for external signature verification (`release-evidence-public.pem`)
+- [x] Add tamper tests for signature verification failure behavior ([tests/unit/test_check_release_assets.py](tests/unit/test_check_release_assets.py))
+- [x] Publish weekly runtime-controls/release-integrity validation report ([weekly report](docs/benchmarks/reports/weekly-2026-03-03.md), [deploy-smoke run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22601763792))
 
 ## Licence
 
