@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## v0.8.0-alpha.1 - 2026-03-06
+
+### Operations Closeout (v0.8.0-alpha.1 backlog 5/5)
+- Added automated stabilization-window evidence checker with JSON output and CI artifact upload.
+- Added GA gate integration-like unit scenarios covering prerelease bypass and GA same-commit failure/success behavior.
+- Added release-evidence contract drift checker for scheduled verification (asset presence + digest/signature + metadata consistency).
+- Added weekly release verification snapshot generation (`PNG + JSON`) and wired outputs into weekly evidence pipeline.
+- Added one-command rollback drill (`v0.7.0 -> v0.6.0`) script, dedicated workflow, and operator runbook.
+
+### Workflow and Evidence Pipeline
+- Extended `ga-readiness` workflow to publish stabilization-window artifacts.
+- Extended `release-verify` workflow to run release-evidence contract sweep and upload report artifact.
+- Extended `weekly-evidence-report` workflow to generate and commit release verification snapshot assets.
+- Added dedicated `rollback-drill` workflow (dispatch + weekly schedule) with diagnostics artifact upload on failure.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.8.0-alpha.1` / `v0.8.0-alpha.1`.
+- Added prerelease dossier at `docs/releases/v0.8.0-alpha.1.md`.
+
 ## v0.7.0 - 2026-03-03
 
 ### GA Promotion

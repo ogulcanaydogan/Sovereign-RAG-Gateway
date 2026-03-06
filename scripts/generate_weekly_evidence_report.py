@@ -47,10 +47,35 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Optional benchmark summary JSON path",
     )
+    parser.add_argument(
+        "--stabilization-summary",
+        default="",
+        help="Optional stabilization summary JSON path",
+    )
+    parser.add_argument(
+        "--release-snapshot-json",
+        default="",
+        help="Optional release verification snapshot JSON path",
+    )
+    parser.add_argument(
+        "--release-snapshot-png",
+        default="",
+        help="Optional release verification snapshot PNG path",
+    )
     return parser.parse_args()
 
 
 def _read_benchmark_summary(path: Path | None) -> dict[str, Any] | None:
+    if path is None or not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _read_json_object(path: Path | None) -> dict[str, Any] | None:
     if path is None or not path.exists():
         return None
     try:
@@ -85,6 +110,9 @@ def render_report(
     release_tag: str,
     release_url: str,
     benchmark_summary: dict[str, Any] | None,
+    stabilization_summary: dict[str, Any] | None = None,
+    release_snapshot_json_path: str = "",
+    release_snapshot_png_path: str = "",
 ) -> str:
     lines = [
         f"# Weekly Report - {report_date}",
@@ -126,6 +154,33 @@ def render_report(
         lines.append(f"- Cost drift (%): `{metrics.get('cost_drift_pct', 'n/a')}`")
         lines.append(f"- Citation presence: `{metrics.get('citation_presence_rate', 'n/a')}`")
 
+    lines.extend(["", "## Stabilization Window"])
+    if stabilization_summary is None:
+        lines.append("- No stabilization summary JSON was available in this run context.")
+    else:
+        lines.append(f"- Overall pass: `{stabilization_summary.get('overall_pass', 'n/a')}`")
+        observed = stabilization_summary.get("observed", {})
+        if isinstance(observed, dict):
+            for workflow_name in sorted(observed):
+                item = observed.get(workflow_name)
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"- `{workflow_name}`: success=`{item.get('success_runs', 'n/a')}` "
+                    f"required=`{item.get('required_successes', 'n/a')}` "
+                    f"pass=`{item.get('pass', 'n/a')}`"
+                )
+
+    lines.extend(["", "## Release Verification Snapshot"])
+    if release_snapshot_json_path.strip():
+        lines.append(f"- Snapshot JSON: `{release_snapshot_json_path.strip()}`")
+    else:
+        lines.append("- Snapshot JSON: `n/a`")
+    if release_snapshot_png_path.strip():
+        lines.append(f"- Snapshot PNG: `{release_snapshot_png_path.strip()}`")
+    else:
+        lines.append("- Snapshot PNG: `n/a`")
+
     lines.extend(
         [
             "",
@@ -150,6 +205,10 @@ def main() -> None:
 
     benchmark_path = Path(args.benchmark_summary) if args.benchmark_summary else None
     benchmark_summary = _read_benchmark_summary(benchmark_path)
+    stabilization_path = (
+        Path(args.stabilization_summary) if args.stabilization_summary else None
+    )
+    stabilization_summary = _read_json_object(stabilization_path)
 
     report = render_report(
         report_date=args.report_date,
@@ -171,6 +230,9 @@ def main() -> None:
         release_tag=args.release_tag,
         release_url=args.release_url,
         benchmark_summary=benchmark_summary,
+        stabilization_summary=stabilization_summary,
+        release_snapshot_json_path=args.release_snapshot_json,
+        release_snapshot_png_path=args.release_snapshot_png,
     )
     output_path.write_text(report, encoding="utf-8")
     print(f"generated weekly report: {output_path}")

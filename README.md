@@ -884,11 +884,11 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Open `Next (v0.8.0-alpha.1)` backlog (max 5 measurable items)
 
 ### Next (v0.8.0-alpha.1)
-- [ ] Add automated stabilization-window evidence script with JSON output (`deploy-smoke`/`release-verify`/`ci`/`terraform` counts + pass/fail).
-- [ ] Add GA gate integration test that fails when same-commit `release-verify` is absent for `vX.Y.Z` tags.
-- [ ] Add release-evidence artifact contract check for scheduled drift detection (asset presence + signature/digest parity).
-- [ ] Add operator-facing release verification dashboard snapshot generation to weekly evidence pipeline.
-- [ ] Add one-command rollback drill (`v0.7.0` -> previous stable) validation in kind smoke environment with published report.
+- [x] Add automated stabilization-window evidence script with JSON output (`deploy-smoke`/`release-verify`/`ci`/`terraform` counts + pass/fail) ([script](scripts/check_stabilization_window.py), [workflow](.github/workflows/ga-readiness.yml), [unit test](tests/unit/test_check_stabilization_window.py))
+- [x] Add GA gate integration test that fails when same-commit `release-verify` is absent for `vX.Y.Z` tags ([test](tests/unit/test_check_ga_release_gate.py), [gate script](scripts/check_ga_release_gate.py))
+- [x] Add release-evidence artifact contract check for scheduled drift detection (asset presence + signature/digest parity) ([script](scripts/check_release_evidence_contract.py), [workflow](.github/workflows/release-verify.yml), [unit test](tests/unit/test_check_release_evidence_contract.py))
+- [x] Add operator-facing release verification dashboard snapshot generation to weekly evidence pipeline ([snapshot script](scripts/generate_release_verification_snapshot.py), [weekly workflow](.github/workflows/weekly-evidence-report.yml), [weekly report generator](scripts/generate_weekly_evidence_report.py))
+- [x] Add one-command rollback drill (`v0.7.0` -> previous stable) validation in kind smoke environment with published report ([script](deploy/kind/rollback-drill.sh), [workflow](.github/workflows/rollback-drill.yml), [ops guide](docs/operations/rollback-drill.md))
 
 ## Licence
 
