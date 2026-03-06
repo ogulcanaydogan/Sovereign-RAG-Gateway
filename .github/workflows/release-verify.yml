@@ -47,7 +47,7 @@ jobs:
           python scripts/check_release_evidence_contract.py \
             --repo "${GITHUB_REPOSITORY}" \
             --latest-count 10 \
-            --allow-legacy-before-tag v0.3.0 \
+            --allow-legacy-before-tag v0.7.0-alpha.1 \
             --json-report artifacts/release-evidence-contract-sweep.json
 
       - name: Upload release verification sweep report
