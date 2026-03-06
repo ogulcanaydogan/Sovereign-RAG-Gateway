@@ -1,0 +1,103 @@
+{
+  "report_date": "2026-03-06",
+  "generated_at": "2026-03-06T09:30:48.665872+00:00",
+  "source": "artifacts/release-verify-sweep-2026-03-06.json",
+  "totals": {
+    "total_releases": 10,
+    "passed_releases": 10,
+    "failed_releases": 0,
+    "pass_rate": 1.0
+  },
+  "releases": [
+    {
+      "tag_name": "v0.7.0",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": true,
+      "legacy_gap_applied": false,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.7.0-rc1",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": true,
+      "legacy_gap_applied": false,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.7.0-alpha.2",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": true,
+      "legacy_gap_applied": false,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.7.0-alpha.1",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": true,
+      "legacy_gap_applied": false,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.6.0",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.6.0-alpha.1",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.5.0",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.5.0-alpha.1",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.4.0",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    },
+    {
+      "tag_name": "v0.3.0",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": false,
+      "legacy_gap_applied": true,
+      "errors": []
+    }
+  ]
+}
