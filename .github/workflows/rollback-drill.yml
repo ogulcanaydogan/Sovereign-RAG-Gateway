@@ -1,0 +1,63 @@
+name: rollback-drill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 8 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  kind-rollback-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kind with checksum verification
+        run: |
+          KIND_VERSION=v0.31.0 \
+          MAX_RETRIES=3 \
+          BACKOFF_BASE_SECONDS=2 \
+          ./deploy/kind/install-kind.sh
+
+      - name: Create kind cluster
+        run: kind create cluster --name srg-rollback-ci --config deploy/kind/kind-config.yaml --wait 60s
+
+      - name: Run rollback drill (v0.7.0 -> v0.6.0)
+        run: |
+          CLUSTER_NAME=srg-rollback-ci \
+          NAMESPACE=srg-system \
+          RELEASE_NAME=srg \
+          IMAGE_REPOSITORY=ghcr.io/${{ github.repository_owner }}/sovereign-rag-gateway \
+          CURRENT_TAG=v0.7.0 \
+          PREVIOUS_STABLE_TAG=v0.6.0 \
+          REPORT_DIR=artifacts/rollback-drill \
+          ./deploy/kind/rollback-drill.sh
+
+      - name: Upload rollback drill report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-drill-${{ github.run_id }}
+          path: artifacts/rollback-drill/
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/kind-logs
+          kind export logs artifacts/kind-logs --name srg-rollback-ci || true
+          kubectl -n srg-system get pods -o wide || true
+          kubectl -n srg-system describe deployment srg-sovereign-rag-gateway || true
+          kubectl -n srg-system logs deployment/srg-sovereign-rag-gateway --tail=200 || true
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-drill-diagnostics-${{ github.run_id }}
+          path: |
+            artifacts/kind-logs
+            /tmp/srg-rollback-port-forward.log

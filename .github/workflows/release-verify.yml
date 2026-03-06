@@ -42,8 +42,22 @@ jobs:
             --enforce-prerelease-flag-parity \
             --json-report artifacts/release-verify-sweep.json
 
+      - name: Verify release evidence contract drift (latest 10)
+        run: |
+          python scripts/check_release_evidence_contract.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --latest-count 10 \
+            --allow-legacy-before-tag v0.3.0 \
+            --json-report artifacts/release-evidence-contract-sweep.json
+
       - name: Upload release verification sweep report
         uses: actions/upload-artifact@v4
         with:
           name: release-verify-sweep-${{ github.run_id }}
           path: artifacts/release-verify-sweep.json
+
+      - name: Upload release evidence contract report
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-contract-sweep-${{ github.run_id }}
+          path: artifacts/release-evidence-contract-sweep.json

@@ -61,6 +61,32 @@ jobs:
       - name: Generate weekly report + index
         run: |
           set -euo pipefail
+          mkdir -p artifacts docs/benchmarks/reports/assets/release-verification
+
+          python scripts/check_stabilization_window.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --window-days 7 \
+            --required-counts "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1" \
+            --json-report "artifacts/stabilization-window-${{ steps.meta.outputs.report_date }}.json" \
+            --no-fail-on-missing
+
+          python scripts/check_release_assets.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --latest-count 10 \
+            --verify-bundle-integrity \
+            --verify-signature \
+            --require-public-key \
+            --allow-legacy-evidence-gap-before-tag v0.3.0 \
+            --allow-legacy-public-key-gap-before-tag v0.7.0-alpha.1 \
+            --enforce-prerelease-flag-parity \
+            --json-report "artifacts/release-verify-sweep-${{ steps.meta.outputs.report_date }}.json"
+
+          python scripts/generate_release_verification_snapshot.py \
+            --report-date "${{ steps.meta.outputs.report_date }}" \
+            --sweep-json "artifacts/release-verify-sweep-${{ steps.meta.outputs.report_date }}.json" \
+            --out-json "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.json" \
+            --out-png "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png"
+
           python scripts/generate_weekly_evidence_report.py \
             --report-date "${{ steps.meta.outputs.report_date }}" \
             --out "docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md" \
@@ -73,7 +99,10 @@ jobs:
             --release-run-completed-at "${{ steps.meta.outputs.release_completed_at }}" \
             --release-run-result "${{ steps.meta.outputs.release_result }}" \
             --release-tag "${{ steps.meta.outputs.release_tag }}" \
-            --release-url "${{ steps.meta.outputs.release_url }}"
+            --release-url "${{ steps.meta.outputs.release_url }}" \
+            --stabilization-summary "artifacts/stabilization-window-${{ steps.meta.outputs.report_date }}.json" \
+            --release-snapshot-json "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.json" \
+            --release-snapshot-png "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png"
           python scripts/update_weekly_reports_index.py \
             --reports-dir docs/benchmarks/reports \
             --out docs/benchmarks/reports/index.md
@@ -95,6 +124,8 @@ jobs:
           add-paths: |
             docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md
             docs/benchmarks/reports/index.md
+            docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.json
+            docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png
 
       - name: PR creation fallback notice
         if: steps.cpr.outcome != 'success'

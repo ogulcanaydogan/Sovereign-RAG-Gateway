@@ -74,3 +74,31 @@ def test_benchmark_summary_json_round_trip_for_render(tmp_path: Path) -> None:
         benchmark_summary=payload,
     )
     assert "Requests: `10`" in report
+
+
+def test_render_report_includes_stabilization_and_snapshot_paths() -> None:
+    report = render_report(
+        report_date="2026-03-03",
+        generated_at="2026-03-03T00:00:00+00:00",
+        deploy_smoke=WorkflowEvidence("deploy-smoke", "11", "u11", "t11", "success"),
+        release=WorkflowEvidence("release", "12", "u12", "t12", "success"),
+        release_tag="v0.7.0",
+        release_url="u13",
+        benchmark_summary=None,
+        stabilization_summary={
+            "overall_pass": True,
+            "observed": {
+                "deploy-smoke": {
+                    "success_runs": 3,
+                    "required_successes": 3,
+                    "pass": True,
+                }
+            },
+        },
+        release_snapshot_json_path="docs/benchmarks/reports/assets/release-verification/weekly-2026-03-03.json",
+        release_snapshot_png_path="docs/benchmarks/reports/assets/release-verification/weekly-2026-03-03.png",
+    )
+    assert "## Stabilization Window" in report
+    assert "Overall pass: `True`" in report
+    assert "Snapshot JSON:" in report
+    assert "weekly-2026-03-03.png" in report
