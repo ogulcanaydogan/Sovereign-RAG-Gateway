@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## v0.9.0-rc1 - 2026-03-07
+
+### RC Stabilization Cut
+- Promoted beta baseline to release candidate for GA hardening with no API contract expansion.
+- Confirmed stabilization-window prerequisites in the last 7 days:
+  - `deploy-smoke >= 3` successful runs
+  - `release-verify >= 2` successful runs
+  - `ci >= 1` successful runs
+  - `terraform-validate >= 1` successful runs
+- Confirmed benchmark trend gate pass using `scripts/check_benchmark_trend.py`.
+
+### Release and Evidence Integrity
+- Kept strict release verification path for both latest and latest-10 historical sweep.
+- Kept release evidence contract drift checks as a required scheduled guardrail.
+- Kept rollback drill workflow and weekly evidence snapshot generation as RC operational baseline.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.9.0-rc1` / `v0.9.0-rc1`.
+- Added RC dossier at `docs/releases/v0.9.0-rc1.md`.
+
 ## v0.8.0-beta.1 - 2026-03-07
 
 ### Beta Cut (Hardening-Only Track)
