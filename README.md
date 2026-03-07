@@ -894,6 +894,19 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Add one-command rollback drill (`v0.7.0` -> previous stable) validation in kind smoke environment with published report ([script](deploy/kind/rollback-drill.sh), [workflow](.github/workflows/rollback-drill.yml), [ops guide](docs/operations/rollback-drill.md))
 - [x] Promote `v0.8.0-alpha.1` prerelease and publish evidence workflow references ([tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.8.0-alpha.1), [release run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22757672097), [ga-readiness run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22757439288), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22757415378), [weekly evidence run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22757475305), [rollback-drill run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22757591696), [weekly report](docs/benchmarks/reports/weekly-2026-03-06.md))
 
+### Next (v0.8.0-beta.1)
+- [x] Promote `v0.8.0-beta.1` prerelease dossier and tagged release ([dossier](docs/releases/v0.8.0-beta.1.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.8.0-beta.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809107307))
+- [x] Keep strict release verification baseline (latest + latest10 sweep + evidence contract checks) green through beta cut ([release-verify workflow](.github/workflows/release-verify.yml), [integrity script](scripts/check_release_assets.py), [contract script](scripts/check_release_evidence_contract.py))
+
+### Next (v0.9.0-rc1)
+- [x] Promote `v0.9.0-rc1` dossier and tagged RC release ([dossier](docs/releases/v0.9.0-rc1.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v0.9.0-rc1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809195389))
+- [x] Confirm stabilization-window criteria (`deploy-smoke>=3`, `release-verify>=2`, `ci>=1`, `terraform-validate>=1`) and benchmark trend gate pass ([stabilization checker](scripts/check_stabilization_window.py), [benchmark trend](scripts/check_benchmark_trend.py))
+
+### Next (v1.0.0)
+- [x] Promote `v1.0.0` GA release with same-commit `release-verify` proof ([dossier](docs/releases/v1.0.0.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.0.0), [same-commit release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809283055), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809289654))
+- [x] Publish GA weekly evidence and operator snapshot artifacts ([weekly evidence run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809312244), [weekly report](docs/benchmarks/reports/weekly-2026-03-07.md), [snapshot JSON](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-07.json), [snapshot PNG](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-07.png))
+- [x] Validate GA operations workflows on current `main` SHA ([ga-readiness](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311534), [release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311867), [rollback-drill](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809312609))
+
 ## Licence
 
 See [LICENSE](LICENSE) for details.
