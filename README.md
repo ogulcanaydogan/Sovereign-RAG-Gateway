@@ -797,9 +797,11 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
-| [`docs/releases/v0.7.0.md`](docs/releases/v0.7.0.md) | Current stable release notes (v0.7.0) |
+| [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md) | Current stable release notes (v1.0.0) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.7.0-rc1.md`](docs/releases/v0.7.0-rc1.md) | Latest prerelease notes (v0.7.0-rc1) |
+| [`docs/releases/v0.9.0-rc1.md`](docs/releases/v0.9.0-rc1.md) | Latest prerelease notes (v0.9.0-rc1) |
+| [`docs/releases/v0.8.0-beta.1.md`](docs/releases/v0.8.0-beta.1.md) | Previous prerelease notes (v0.8.0-beta.1) |
+| [`docs/releases/v0.7.0-rc1.md`](docs/releases/v0.7.0-rc1.md) | Previous prerelease notes (v0.7.0-rc1) |
 | [`docs/releases/v0.7.0-alpha.2.md`](docs/releases/v0.7.0-alpha.2.md) | Previous prerelease notes (v0.7.0-alpha.2) |
 | [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) | Previous stable release notes (v0.6.0) |
 | [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md) | Previous stable release notes (v0.5.0) |
