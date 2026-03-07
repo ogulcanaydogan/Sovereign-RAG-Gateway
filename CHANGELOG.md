@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## v1.0.0 - 2026-03-07
+
+### GA Hardening Completion
+- Promoted hardening-only line to GA without introducing breaking HTTP/API changes.
+- Finalized runtime governance baseline for GA:
+  - policy-first fail-closed controls
+  - tenant-aware budget enforcement
+  - PHI/PII redaction with audit accounting
+  - webhook durability and replay path
+  - request traceability and signed evidence bundles
+- Finalized release-integrity baseline for GA:
+  - latest strict release verification
+  - latest-10 historical integrity sweep
+  - release evidence contract drift checks
+  - GA same-commit `release-verify` enforcement for `vX.Y.Z` tags
+
+### Operations and Evidence
+- Kept weekly evidence report generation and verification snapshot outputs as GA operating baseline.
+- Kept rollback drill workflow and operator runbook as GA readiness controls.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `1.0.0` / `v1.0.0`.
+- Added GA release dossier at `docs/releases/v1.0.0.md`.
+
 ## v0.9.0-rc1 - 2026-03-07
 
 ### RC Stabilization Cut
