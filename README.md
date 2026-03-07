@@ -783,6 +783,7 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/strategy/differentiation-strategy.md`](docs/strategy/differentiation-strategy.md) | Competitive analysis and positioning |
 | [`docs/strategy/why-this-exists-security-sre.md`](docs/strategy/why-this-exists-security-sre.md) | Security and SRE problem narrative |
 | [`docs/strategy/killer-demo-stories.md`](docs/strategy/killer-demo-stories.md) | 5 measurable demo scenarios |
+| [`docs/tr/proje-ozeti.md`](docs/tr/proje-ozeti.md) | Detailed Turkish project narrative (what it solves, architecture, and execution history) |
 | [`docs/benchmarks/governance-yield-vs-performance-overhead.md`](docs/benchmarks/governance-yield-vs-performance-overhead.md) | Full benchmark methodology |
 | [`docs/architecture/threat-model.md`](docs/architecture/threat-model.md) | Threat matrix, controls, and residual risk |
 | [`docs/operations/helm-kind-runbook.md`](docs/operations/helm-kind-runbook.md) | Local Kubernetes deployment guide |
