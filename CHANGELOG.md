@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## v0.8.0-beta.1 - 2026-03-07
+
+### Beta Cut (Hardening-Only Track)
+- Promoted the v0.8 operational hardening line from alpha to beta without adding new HTTP surface area.
+- Kept runtime-governance behavior stable across policy fail-closed mode, budget controls, webhook durability, tracing, and release-integrity checks.
+- Locked beta release posture around existing required workflows:
+  - `ci`
+  - `deploy-smoke`
+  - `terraform-validate`
+  - `ga-readiness`
+  - `release-verify`
+  - `evidence-replay-smoke`
+
+### Release Integrity and Evidence Gates
+- Retained strict release verification in CI:
+  - latest release integrity/signature/public-key verification
+  - historical sweep over latest 10 releases
+  - release-evidence contract drift checks
+- Retained weekly evidence snapshot generation and rollback drill automation as beta baseline controls.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `0.8.0-beta.1` / `v0.8.0-beta.1`.
+- Added prerelease dossier at `docs/releases/v0.8.0-beta.1.md`.
+
 ## v0.8.0-alpha.1 - 2026-03-06
 
 ### Operations Closeout (v0.8.0-alpha.1 backlog 5/5)
