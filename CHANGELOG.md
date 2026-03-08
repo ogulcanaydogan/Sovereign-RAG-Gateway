@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v1.1.0-rc1 - 2026-03-08
+
+### RC Stabilization Cut
+- Promoted `v1.1.0` reliability hardening track from alpha to release candidate without introducing API surface changes.
+- Confirmed stabilization-window criteria via `scripts/check_stabilization_window.py` with:
+  - `deploy-smoke >= 3`
+  - `release-verify >= 2`
+  - `ci >= 1`
+  - `terraform-validate >= 1`
+  - `slo-reliability >= 1`
+- Kept reliability/SLO and release-integrity controls as mandatory prerelease gates.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `1.1.0-rc1` / `v1.1.0-rc1`.
+- Added RC dossier at `docs/releases/v1.1.0-rc1.md`.
+
 ## v1.1.0-alpha.2 - 2026-03-08
 
 ### Reliability/SLO Track Continuation
