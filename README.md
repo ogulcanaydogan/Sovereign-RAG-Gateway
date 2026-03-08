@@ -2,7 +2,7 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-![Version](https://img.shields.io/badge/version-1.1.0--alpha.1-blue)
+![Version](https://img.shields.io/badge/version-1.1.0--alpha.2-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 1.1.0-alpha.1 |
+| Current version | 1.1.0-alpha.2 |
 
 ### Quality and Contracts
 
@@ -803,7 +803,8 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md) | Current stable release notes (v1.0.0) |
-| [`docs/releases/v1.1.0-alpha.1.md`](docs/releases/v1.1.0-alpha.1.md) | Latest prerelease notes (v1.1.0-alpha.1) |
+| [`docs/releases/v1.1.0-alpha.2.md`](docs/releases/v1.1.0-alpha.2.md) | Latest prerelease notes (v1.1.0-alpha.2) |
+| [`docs/releases/v1.1.0-alpha.1.md`](docs/releases/v1.1.0-alpha.1.md) | Previous prerelease notes (v1.1.0-alpha.1) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
 | [`docs/releases/v0.9.0-rc1.md`](docs/releases/v0.9.0-rc1.md) | Previous prerelease notes (v0.9.0-rc1) |
 | [`docs/releases/v0.8.0-beta.1.md`](docs/releases/v0.8.0-beta.1.md) | Previous prerelease notes (v0.8.0-beta.1) |
@@ -919,6 +920,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Add load shedding/backpressure controls with deterministic `503 overload_shed` behavior plus audit/metrics coverage ([inflight guard](app/services/inflight_guard.py), [chat service](app/services/chat_service.py), [audit schema](docs/contracts/v1/audit-event.schema.json))
 - [x] Extend weekly evidence pipeline with soak + fault + SLO summary artifacts ([workflow](.github/workflows/weekly-evidence-report.yml), [report generator](scripts/generate_weekly_evidence_report.py), [weekly report](docs/benchmarks/reports/weekly-2026-03-08.md), [snapshot JSON](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.json), [snapshot PNG](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.png))
 - [x] Add dedicated `slo-reliability` workflow and integrate reliability gate into CI ([workflow](.github/workflows/slo-reliability.yml), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810621054), [ga-readiness run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810618059), [rollback-drill run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810535411), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.1.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810636117))
+
+### Next (v1.1.0)
+- [ ] Keep release-integrity baseline green (latest + latest10 sweep + evidence contract checks).
+- [ ] Confirm stabilization-window gate with `overall_pass=true` (`deploy-smoke>=3`, `release-verify>=2`, `ci>=1`, `terraform-validate>=1`, `slo-reliability>=1`).
+- [ ] Promote `v1.1.0` GA release with same-commit `release-verify` proof (`check_ga_release_gate` pass before tag).
+- [ ] Publish weekly evidence report including reliability summary and release verification snapshots.
+- [ ] Verify GA release asset/signature set in strict mode (`check_release_assets --latest --verify-bundle-integrity --verify-signature --require-public-key --enforce-prerelease-flag-parity`).
 
 ## Licence
 
