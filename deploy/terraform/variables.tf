@@ -97,13 +97,13 @@ variable "gateway_namespace" {
 variable "gateway_chart_version" {
   description = "Helm chart version"
   type        = string
-  default     = "1.1.0-rc1"
+  default     = "1.1.0"
 }
 
 variable "gateway_image_tag" {
   description = "Container image tag for the gateway"
   type        = string
-  default     = "v1.1.0-rc1"
+  default     = "v1.1.0"
 }
 
 variable "gateway_replicas" {

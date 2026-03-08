@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## v1.1.0 - 2026-03-08
+
+### GA Hardening Completion
+- Promoted the reliability/SLO hardening line to GA with no HTTP API or schema-breaking changes.
+- Enforced GA promotion safety with same-commit `release-verify` gate (`check_ga_release_gate.py`).
+- Kept strict release integrity baseline active:
+  - latest release asset/signature verification
+  - latest10 historical integrity sweep
+  - release evidence contract checks
+
+### Operations Evidence
+- Kept weekly evidence reporting with reliability summary and release-verification snapshots as GA baseline.
+- Kept rollback drill workflow as a standing operations control.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `1.1.0` / `v1.1.0`.
+- Added GA dossier at `docs/releases/v1.1.0.md`.
+
 ## v1.1.0-rc1 - 2026-03-08
 
 ### RC Stabilization Cut

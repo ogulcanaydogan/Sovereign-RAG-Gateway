@@ -2,7 +2,7 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-![Version](https://img.shields.io/badge/version-1.1.0--rc1-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 1.1.0-rc1 |
+| Current version | 1.1.0 |
 
 ### Quality and Contracts
 
@@ -802,8 +802,8 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/operations/runtime-controls-v050.md`](docs/operations/runtime-controls-v050.md) | Redis budgets, OTLP tracing export, and webhook delivery hardening |
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
-| [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md) | Current stable release notes (v1.0.0) |
-| [`docs/releases/v1.1.0-rc1.md`](docs/releases/v1.1.0-rc1.md) | Latest prerelease notes (v1.1.0-rc1) |
+| [`docs/releases/v1.1.0.md`](docs/releases/v1.1.0.md) | Current stable release notes (v1.1.0) |
+| [`docs/releases/v1.1.0-rc1.md`](docs/releases/v1.1.0-rc1.md) | Previous prerelease notes (v1.1.0-rc1) |
 | [`docs/releases/v1.1.0-alpha.2.md`](docs/releases/v1.1.0-alpha.2.md) | Previous prerelease notes (v1.1.0-alpha.2) |
 | [`docs/releases/v1.1.0-alpha.1.md`](docs/releases/v1.1.0-alpha.1.md) | Previous prerelease notes (v1.1.0-alpha.1) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
