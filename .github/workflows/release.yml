@@ -52,6 +52,16 @@ jobs:
             --tag "${GITHUB_REF_NAME}" \
             --required-workflow "release-verify"
 
+      - name: Enforce prerelease readiness gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run python scripts/check_stabilization_window.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --window-days 7 \
+            --required-counts "release-verify=1,slo-reliability=1" \
+            --json-report artifacts/release-readiness-window.json
+
       - name: Generate signed release evidence artifacts
         run: |
           openssl genrsa -out artifacts/release-evidence-private.pem 2048

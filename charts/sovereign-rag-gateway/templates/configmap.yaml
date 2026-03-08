@@ -53,3 +53,6 @@ data:
   SRG_TRACING_OTLP_TIMEOUT_S: {{ .Values.env.tracingOtlpTimeoutS | quote }}
   SRG_TRACING_OTLP_HEADERS: {{ .Values.env.tracingOtlpHeaders | quote }}
   SRG_TRACING_SERVICE_NAME: {{ .Values.env.tracingServiceName | quote }}
+  SRG_INFLIGHT_GLOBAL_LIMIT: {{ .Values.env.inflightGlobalLimit | quote }}
+  SRG_INFLIGHT_TENANT_DEFAULT_LIMIT: {{ .Values.env.inflightTenantDefaultLimit | quote }}
+  SRG_INFLIGHT_TENANT_LIMITS: {{ .Values.env.inflightTenantLimits | quote }}

@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/ogulcanaydogan/sovereign-rag-gateway
-  tag: latest
+  tag: v1.1.0-alpha.1
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -105,6 +105,9 @@ env:
   tracingOtlpTimeoutS: 2.0
   tracingOtlpHeaders: ""
   tracingServiceName: sovereign-rag-gateway
+  inflightGlobalLimit: 0
+  inflightTenantDefaultLimit: 0
+  inflightTenantLimits: ""
 
 probes:
   liveness:

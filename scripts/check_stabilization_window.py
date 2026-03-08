@@ -11,7 +11,9 @@ from pathlib import Path
 from time import sleep
 from typing import Any
 
-DEFAULT_REQUIRED_COUNTS = "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1"
+DEFAULT_REQUIRED_COUNTS = (
+    "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1,slo-reliability=1"
+)
 
 
 @dataclass(frozen=True)

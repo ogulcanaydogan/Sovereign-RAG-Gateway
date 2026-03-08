@@ -86,6 +86,67 @@ def test_budget_usage_recorded_on_success(monkeypatch, tmp_path: Path) -> None:
     assert int(summary["remaining"]) < int(summary["ceiling"])
 
 
+def test_overload_shed_returns_503_and_writes_audit(monkeypatch, tmp_path: Path) -> None:
+    client = _build_client(
+        monkeypatch,
+        tmp_path,
+        extra_env={
+            "SRG_INFLIGHT_GLOBAL_LIMIT": "1",
+            "SRG_INFLIGHT_TENANT_DEFAULT_LIMIT": "1",
+        },
+    )
+    service = client.app.state.chat_service
+    guard = service._inflight_guard
+    assert guard is not None
+    acquired = guard.try_acquire("tenant-a")
+    assert acquired.allowed is True
+
+    try:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=_auth_headers(),
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": "hello"}],
+                "max_tokens": 8,
+            },
+        )
+    finally:
+        guard.release("tenant-a")
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["error"]["code"] == "overload_shed"
+
+    metrics_response = client.get("/metrics", headers=_auth_headers())
+    assert metrics_response.status_code == 200
+    assert "srg_overload_shed_total" in metrics_response.text
+
+    log_path = Path(str(service._settings.audit_log_path))
+    payload = json.loads(log_path.read_text(encoding="utf-8").splitlines()[-1])
+    assert payload["provider"] == "overload-gate"
+    assert payload["deny_reason"] == "overload_shed"
+    assert payload["overload_shed_reason"] in {"global_limit", "tenant_limit"}
+
+
+def test_overload_guard_allows_request_under_limit(monkeypatch, tmp_path: Path) -> None:
+    client = _build_client(
+        monkeypatch,
+        tmp_path,
+        extra_env={"SRG_INFLIGHT_GLOBAL_LIMIT": "3", "SRG_INFLIGHT_TENANT_DEFAULT_LIMIT": "2"},
+    )
+    response = client.post(
+        "/v1/chat/completions",
+        headers=_auth_headers(),
+        json={
+            "model": "gpt-4o-mini",
+            "messages": [{"role": "user", "content": "hello"}],
+            "max_tokens": 8,
+        },
+    )
+    assert response.status_code == 200
+
+
 def test_response_redaction_masks_provider_output(monkeypatch, tmp_path: Path) -> None:
     client = _build_client(
         monkeypatch,

@@ -66,7 +66,7 @@ jobs:
           python scripts/check_stabilization_window.py \
             --repo "${GITHUB_REPOSITORY}" \
             --window-days 7 \
-            --required-counts "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1" \
+            --required-counts "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1,slo-reliability=1" \
             --json-report "artifacts/stabilization-window-${{ steps.meta.outputs.report_date }}.json" \
             --no-fail-on-missing
 
@@ -87,6 +87,32 @@ jobs:
             --out-json "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.json" \
             --out-png "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png"
 
+          python scripts/benchmark_runner.py \
+            --scenario enforce_redact \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out artifacts/benchmarks/governance
+
+          python scripts/benchmark_runner.py \
+            --scenario soak_mixed_tenant_30m \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out artifacts/soak
+          cp artifacts/soak/results_summary.json "artifacts/soak-summary-${{ steps.meta.outputs.report_date }}.json"
+
+          python scripts/run_fault_injection_suite.py \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out-dir artifacts/fault-injection \
+            --json-report "artifacts/fault-summary-${{ steps.meta.outputs.report_date }}.json"
+
+          python scripts/check_slo_reliability.py \
+            --benchmark-summary artifacts/benchmarks/governance/results_summary.json \
+            --fault-summary "artifacts/fault-summary-${{ steps.meta.outputs.report_date }}.json" \
+            --soak-summary "artifacts/soak-summary-${{ steps.meta.outputs.report_date }}.json" \
+            --baseline-summary benchmarks/baselines/governance_enforce_redact_summary.json \
+            --max-error-rate 0.01 \
+            --max-p95-regression-pct 10 \
+            --max-nominal-shed-rate 0.02 \
+            --json-report "artifacts/slo-summary-${{ steps.meta.outputs.report_date }}.json"
+
           python scripts/generate_weekly_evidence_report.py \
             --report-date "${{ steps.meta.outputs.report_date }}" \
             --out "docs/benchmarks/reports/weekly-${{ steps.meta.outputs.report_date }}.md" \
@@ -100,9 +126,13 @@ jobs:
             --release-run-result "${{ steps.meta.outputs.release_result }}" \
             --release-tag "${{ steps.meta.outputs.release_tag }}" \
             --release-url "${{ steps.meta.outputs.release_url }}" \
+            --benchmark-summary artifacts/benchmarks/governance/results_summary.json \
             --stabilization-summary "artifacts/stabilization-window-${{ steps.meta.outputs.report_date }}.json" \
             --release-snapshot-json "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.json" \
-            --release-snapshot-png "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png"
+            --release-snapshot-png "docs/benchmarks/reports/assets/release-verification/weekly-${{ steps.meta.outputs.report_date }}.png" \
+            --slo-summary "artifacts/slo-summary-${{ steps.meta.outputs.report_date }}.json" \
+            --fault-summary "artifacts/fault-summary-${{ steps.meta.outputs.report_date }}.json" \
+            --soak-summary "artifacts/soak-summary-${{ steps.meta.outputs.report_date }}.json"
           python scripts/update_weekly_reports_index.py \
             --reports-dir docs/benchmarks/reports \
             --out docs/benchmarks/reports/index.md
