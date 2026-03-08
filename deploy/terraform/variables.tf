@@ -97,13 +97,13 @@ variable "gateway_namespace" {
 variable "gateway_chart_version" {
   description = "Helm chart version"
   type        = string
-  default     = "1.0.0"
+  default     = "1.1.0-alpha.1"
 }
 
 variable "gateway_image_tag" {
   description = "Container image tag for the gateway"
   type        = string
-  default     = "v1.0.0"
+  default     = "v1.1.0-alpha.1"
 }
 
 variable "gateway_replicas" {
@@ -175,6 +175,24 @@ variable "srg_tracing_otlp_enabled" {
 
 variable "srg_tracing_otlp_endpoint" {
   description = "OTLP/HTTP trace endpoint (e.g. http://otel-collector:4318/v1/traces)"
+  type        = string
+  default     = ""
+}
+
+variable "srg_inflight_global_limit" {
+  description = "Global in-flight request limit (0 disables load shedding)"
+  type        = number
+  default     = 0
+}
+
+variable "srg_inflight_tenant_default_limit" {
+  description = "Default per-tenant in-flight request limit (0 disables tenant shedding)"
+  type        = number
+  default     = 0
+}
+
+variable "srg_inflight_tenant_limits" {
+  description = "Comma-separated tenant-specific in-flight limits (tenant:limit)"
   type        = string
   default     = ""
 }

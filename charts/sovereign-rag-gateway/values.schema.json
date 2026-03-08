@@ -178,7 +178,10 @@
         "tracingOtlpEndpoint",
         "tracingOtlpTimeoutS",
         "tracingOtlpHeaders",
-        "tracingServiceName"
+        "tracingServiceName",
+        "inflightGlobalLimit",
+        "inflightTenantDefaultLimit",
+        "inflightTenantLimits"
       ],
       "properties": {
         "apiKeys": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
@@ -229,7 +232,10 @@
         "tracingOtlpEndpoint": { "type": "string" },
         "tracingOtlpTimeoutS": { "type": "number", "minimum": 0.1 },
         "tracingOtlpHeaders": { "type": "string" },
-        "tracingServiceName": { "type": "string", "minLength": 1 }
+        "tracingServiceName": { "type": "string", "minLength": 1 },
+        "inflightGlobalLimit": { "type": "integer", "minimum": 0 },
+        "inflightTenantDefaultLimit": { "type": "integer", "minimum": 0 },
+        "inflightTenantLimits": { "type": "string" }
       }
     },
     "probes": {

@@ -14,7 +14,7 @@ from app.audit.writer import AuditValidationError, AuditWriter
 from app.budget.tracker import BudgetBackendError, BudgetExceededError, BudgetTracker
 from app.config.settings import Settings
 from app.core.errors import AppError
-from app.metrics import record_request
+from app.metrics import inc_counter, record_request
 from app.models.openai import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -40,6 +40,7 @@ from app.rag.retrieval import (
 )
 from app.rag.types import DocumentChunk
 from app.redaction.engine import RedactionEngine
+from app.services.inflight_guard import InflightGuard
 from app.telemetry.tracing import SpanCollector
 from app.webhooks.dispatcher import WebhookDispatcher, WebhookEventType
 
@@ -78,6 +79,7 @@ class ChatService:
         budget_tracker: BudgetTracker | None = None,
         webhook_dispatcher: WebhookDispatcher | None = None,
         span_collector: SpanCollector | None = None,
+        inflight_guard: InflightGuard | None = None,
     ):
         self._settings = settings
         self._policy_client = policy_client
@@ -89,6 +91,7 @@ class ChatService:
         self._budget_tracker = budget_tracker
         self._webhook_dispatcher = webhook_dispatcher
         self._span_collector = span_collector
+        self._inflight_guard = inflight_guard
 
     async def handle_chat(
         self, request: Request, payload: ChatCompletionRequest
@@ -102,44 +105,58 @@ class ChatService:
         webhook_events: list[dict[str, object]] = []
         budget_summary: dict[str, object] | None = None
         request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
+        inflight_acquired = False
 
-        with self._span(
-            trace_id=request_id,
-            operation="gateway.request",
-            attributes={
-                "endpoint": endpoint,
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "request_id": request_id,
-            },
-        ):
-            rag_requested = bool(
-                self._settings.rag_enabled and payload.rag and payload.rag.enabled
-            )
-            requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
-
-            policy_input = {
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "endpoint": endpoint,
-                "requested_model": payload.model,
-                "classification": classification,
-                "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
-                "connector_targets": [requested_connector] if rag_requested else [],
-                "request_metadata": {
-                    "request_id": request_id,
-                },
-            }
-
+        try:
             with self._span(
                 trace_id=request_id,
-                operation="policy.evaluate",
+                operation="gateway.request",
                 attributes={
                     "endpoint": endpoint,
-                    "model": payload.model,
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "request_id": request_id,
                 },
             ):
-                decision = self._resolve_policy_decision(policy_input, request_id=request_id)
+                self._acquire_inflight_or_deny(
+                    request_id=request_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    endpoint=endpoint,
+                    requested_model=payload.model,
+                    request_payload_hash=request_payload_hash,
+                    streaming=False,
+                    webhook_events=webhook_events,
+                )
+                inflight_acquired = True
+
+                rag_requested = bool(
+                    self._settings.rag_enabled and payload.rag and payload.rag.enabled
+                )
+                requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
+
+                policy_input = {
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "endpoint": endpoint,
+                    "requested_model": payload.model,
+                    "classification": classification,
+                    "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
+                    "connector_targets": [requested_connector] if rag_requested else [],
+                    "request_metadata": {
+                        "request_id": request_id,
+                    },
+                }
+
+                with self._span(
+                    trace_id=request_id,
+                    operation="policy.evaluate",
+                    attributes={
+                        "endpoint": endpoint,
+                        "model": payload.model,
+                    },
+                ):
+                    decision = self._resolve_policy_decision(policy_input, request_id=request_id)
 
             if not decision.allow and self._settings.opa_mode == "enforce":
                 reason = decision.deny_reason or "policy_denied"
@@ -423,6 +440,9 @@ class ChatService:
                     provider_attempts=provider_attempts,
                 )
             return response
+        finally:
+            if inflight_acquired:
+                self._release_inflight(tenant_id)
 
     async def handle_chat_stream(
         self, request: Request, payload: ChatCompletionRequest
@@ -436,42 +456,56 @@ class ChatService:
         webhook_events: list[dict[str, object]] = []
         budget_summary: dict[str, object] | None = None
         request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
+        inflight_acquired = False
 
-        with self._span(
-            trace_id=request_id,
-            operation="gateway.request",
-            attributes={
-                "endpoint": endpoint,
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "request_id": request_id,
-                "streaming": True,
-            },
-        ):
-            rag_requested = bool(
-                self._settings.rag_enabled and payload.rag and payload.rag.enabled
-            )
-            requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
-
-            policy_input = {
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "endpoint": endpoint,
-                "requested_model": payload.model,
-                "classification": classification,
-                "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
-                "connector_targets": [requested_connector] if rag_requested else [],
-                "request_metadata": {
-                    "request_id": request_id,
-                },
-            }
-
+        try:
             with self._span(
                 trace_id=request_id,
-                operation="policy.evaluate",
-                attributes={"endpoint": endpoint, "model": payload.model, "streaming": True},
+                operation="gateway.request",
+                attributes={
+                    "endpoint": endpoint,
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "request_id": request_id,
+                    "streaming": True,
+                },
             ):
-                decision = self._resolve_policy_decision(policy_input, request_id=request_id)
+                self._acquire_inflight_or_deny(
+                    request_id=request_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    endpoint=endpoint,
+                    requested_model=payload.model,
+                    request_payload_hash=request_payload_hash,
+                    streaming=True,
+                    webhook_events=webhook_events,
+                )
+                inflight_acquired = True
+
+                rag_requested = bool(
+                    self._settings.rag_enabled and payload.rag and payload.rag.enabled
+                )
+                requested_connector = payload.rag.connector if rag_requested and payload.rag else ""
+
+                policy_input = {
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "endpoint": endpoint,
+                    "requested_model": payload.model,
+                    "classification": classification,
+                    "estimated_tokens": sum(len(msg.content.split()) for msg in payload.messages),
+                    "connector_targets": [requested_connector] if rag_requested else [],
+                    "request_metadata": {
+                        "request_id": request_id,
+                    },
+                }
+
+                with self._span(
+                    trace_id=request_id,
+                    operation="policy.evaluate",
+                    attributes={"endpoint": endpoint, "model": payload.model, "streaming": True},
+                ):
+                    decision = self._resolve_policy_decision(policy_input, request_id=request_id)
 
             if not decision.allow and self._settings.opa_mode == "enforce":
                 reason = decision.deny_reason or "policy_denied"
@@ -623,6 +657,11 @@ class ChatService:
                         webhook_events=webhook_events,
                     )
                     raise self._app_error_from_provider_error(exc) from exc
+
+        except Exception:
+            if inflight_acquired:
+                self._release_inflight(tenant_id)
+            raise
 
         async def event_stream() -> AsyncIterator[str]:
             nonlocal budget_summary
@@ -955,6 +994,8 @@ class ChatService:
                         redaction_count=redaction_count,
                         provider_attempts=provider_attempts,
                     )
+                if inflight_acquired:
+                    self._release_inflight(tenant_id)
 
         return event_stream()
 
@@ -970,21 +1011,35 @@ class ChatService:
         webhook_events: list[dict[str, object]] = []
         budget_summary: dict[str, object] | None = None
         request_payload_hash = self._hash_value(payload.model_dump(exclude_none=True))
+        inflight_acquired = False
 
         raw_inputs = [payload.input] if isinstance(payload.input, str) else payload.input
         if not raw_inputs:
             raise AppError(422, "request_validation_failed", "validation", "Input cannot be empty")
 
-        with self._span(
-            trace_id=request_id,
-            operation="gateway.request",
-            attributes={
-                "endpoint": endpoint,
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "request_id": request_id,
-            },
-        ):
+        try:
+            with self._span(
+                trace_id=request_id,
+                operation="gateway.request",
+                attributes={
+                    "endpoint": endpoint,
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "request_id": request_id,
+                },
+            ):
+                self._acquire_inflight_or_deny(
+                    request_id=request_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    endpoint=endpoint,
+                    requested_model=payload.model,
+                    request_payload_hash=request_payload_hash,
+                    streaming=False,
+                    webhook_events=webhook_events,
+                )
+                inflight_acquired = True
+
             policy_input = {
                 "tenant_id": tenant_id,
                 "user_id": user_id,
@@ -1239,6 +1294,9 @@ class ChatService:
                     provider_attempts=provider_attempts,
                 )
             return response
+        finally:
+            if inflight_acquired:
+                self._release_inflight(tenant_id)
 
     def readiness(self) -> dict[str, str]:
         policy_schema = self._settings.contracts_dir / "policy-decision.schema.json"
@@ -1312,6 +1370,59 @@ class ChatService:
         prompt_estimate = max(sum(len(item["content"].split()) for item in messages), 1)
         completion_estimate = max_tokens if isinstance(max_tokens, int) and max_tokens > 0 else 0
         return prompt_estimate + completion_estimate
+
+    def _acquire_inflight_or_deny(
+        self,
+        request_id: str,
+        tenant_id: str,
+        user_id: str,
+        endpoint: str,
+        requested_model: str,
+        request_payload_hash: str,
+        streaming: bool,
+        webhook_events: list[dict[str, object]],
+    ) -> None:
+        guard = self._inflight_guard
+        if guard is None:
+            return
+
+        result = guard.try_acquire(tenant_id)
+        if result.allowed:
+            return
+
+        reason = result.reason or "overload"
+        if self._settings.metrics_enabled:
+            inc_counter(
+                "srg_overload_shed_total",
+                {"tenant": tenant_id, "endpoint": endpoint, "reason": reason},
+            )
+        self._write_overload_deny_audit(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=endpoint,
+            requested_model=requested_model,
+            request_payload_hash=request_payload_hash,
+            streaming=streaming,
+            reason=reason,
+            webhook_events=webhook_events,
+        )
+        raise AppError(
+            503,
+            "overload_shed",
+            "policy",
+            (
+                "Request shed due to overload "
+                f"(reason={reason}, global_inflight={result.global_inflight}, "
+                f"tenant_inflight={result.tenant_inflight})"
+            ),
+        )
+
+    def _release_inflight(self, tenant_id: str) -> None:
+        guard = self._inflight_guard
+        if guard is None:
+            return
+        guard.release(tenant_id)
 
     def _enforce_budget_or_deny(
         self,
@@ -1424,6 +1535,65 @@ class ChatService:
                 },
             )
             return current_summary
+
+    def _write_overload_deny_audit(
+        self,
+        request_id: str,
+        tenant_id: str,
+        user_id: str,
+        endpoint: str,
+        requested_model: str,
+        request_payload_hash: str,
+        streaming: bool,
+        reason: str,
+        webhook_events: list[dict[str, object]] | None = None,
+    ) -> None:
+        decision = PolicyDecision(
+            decision_id=f"overload-{uuid4()}",
+            allow=False,
+            deny_reason="overload_shed",
+            policy_hash="runtime-overload",
+            evaluated_at=datetime.now(UTC).isoformat(),
+            transforms=[],
+        )
+        event = self._build_audit_event(
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            endpoint=endpoint,
+            requested_model=requested_model,
+            selected_model=requested_model,
+            provider="overload-gate",
+            decision=decision,
+            policy_decision_label="deny",
+            redaction_count=0,
+            request_payload_hash=request_payload_hash,
+            redacted_payload_hash=request_payload_hash,
+            provider_request_hash=None,
+            provider_response_hash=None,
+            retrieval_citations=[],
+            streaming=streaming,
+            tokens_in=0,
+            tokens_out=0,
+            cost_usd=0.0,
+            provider_attempts=1,
+            fallback_chain=[],
+            trace_id=request_id,
+            webhook_events=webhook_events,
+            overload_shed_reason=reason,
+        )
+        event["deny_reason"] = "overload_shed"
+        try:
+            self._audit_writer.write_event(event)
+        except AuditValidationError as exc:
+            logger.warning(
+                "audit_write_failed_overload_deny",
+                extra={
+                    "request_id": request_id,
+                    "overload_shed_reason": reason,
+                    "error": str(exc),
+                },
+            )
 
     def _queue_webhook_event(
         self,
@@ -1588,6 +1758,7 @@ class ChatService:
         webhook_events: list[dict[str, object]] | None = None,
         input_redaction_count: int | None = None,
         output_redaction_count: int | None = None,
+        overload_shed_reason: str | None = None,
     ) -> dict[str, object]:
         event: dict[str, object] = {
             "request_id": request_id,
@@ -1630,6 +1801,8 @@ class ChatService:
             event["input_redaction_count"] = input_redaction_count
         if output_redaction_count is not None:
             event["output_redaction_count"] = output_redaction_count
+        if overload_shed_reason is not None:
+            event["overload_shed_reason"] = overload_shed_reason
         if decision.deny_reason is not None:
             event["deny_reason"] = decision.deny_reason
         if decision.provider_constraints is not None:

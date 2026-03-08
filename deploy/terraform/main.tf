@@ -332,5 +332,20 @@ resource "helm_release" "gateway" {
     value = var.srg_tracing_otlp_endpoint
   }
 
+  set {
+    name  = "env.inflightGlobalLimit"
+    value = var.srg_inflight_global_limit
+  }
+
+  set {
+    name  = "env.inflightTenantDefaultLimit"
+    value = var.srg_inflight_tenant_default_limit
+  }
+
+  set {
+    name  = "env.inflightTenantLimits"
+    value = var.srg_inflight_tenant_limits
+  }
+
   depends_on = [aws_eks_node_group.main]
 }

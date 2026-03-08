@@ -13,6 +13,7 @@ DEFAULT_REQUIRED_WORKFLOWS = (
     "terraform-validate",
     "evidence-replay-smoke",
     "release-verify",
+    "slo-reliability",
 )
 
 

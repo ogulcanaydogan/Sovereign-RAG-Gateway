@@ -53,3 +53,24 @@ def test_benchmark_runner_supports_fault_injection_scenario(tmp_path: Path) -> N
     summary = json.loads((tmp_path / "results_summary.json").read_text(encoding="utf-8"))
     assert summary["metrics"]["fault_type"] == "retrieval_timeout"
     assert summary["metrics"]["errors_total"] == 1
+
+
+def test_benchmark_runner_supports_soak_profile(tmp_path: Path) -> None:
+    dataset = [
+        {
+            "request_id": "req-soak",
+            "tenant_id": "tenant-a",
+            "classification": "public",
+            "is_rag": False,
+            "input": "Synthetic soak request",
+        }
+    ]
+    run_benchmark(
+        out_dir=tmp_path,
+        scenario="soak_mixed_tenant_30m",
+        dataset_version="v1",
+        dataset_rows=dataset,
+    )
+    summary = json.loads((tmp_path / "results_summary.json").read_text(encoding="utf-8"))
+    assert summary["profile"]["duration_minutes"] == 30
+    assert summary["metrics"]["shed_rate"] == 0.01

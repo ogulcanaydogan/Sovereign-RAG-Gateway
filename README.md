@@ -2,7 +2,7 @@
 
 **A policy-first, OpenAI-compatible governance gateway for regulated AI workloads.**
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0--alpha.1-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
@@ -636,7 +636,7 @@ Full analysis with source references: [`docs/strategy/differentiation-strategy.m
 | Test functions | 122 (unit, integration, contract, benchmark) |
 | Support scripts | ~1,830 lines across 13 scripts |
 | Documentation | ~1,150 lines across 22 documents |
-| Current version | 0.7.0 |
+| Current version | 1.1.0-alpha.1 |
 
 ### Quality and Contracts
 
@@ -762,6 +762,11 @@ SRG_TRACING_OTLP_TIMEOUT_S=2.0
 SRG_TRACING_OTLP_HEADERS='{"Authorization":"Bearer replace_me"}'
 SRG_TRACING_SERVICE_NAME=sovereign-rag-gateway
 
+# Reliability / load shedding (optional)
+SRG_INFLIGHT_GLOBAL_LIMIT=200
+SRG_INFLIGHT_TENANT_DEFAULT_LIMIT=50
+SRG_INFLIGHT_TENANT_LIMITS="tenant-a:25,tenant-b:75"
+
 # SharePoint connector (optional)
 SRG_RAG_SHAREPOINT_BASE_URL=https://graph.microsoft.com/v1.0
 SRG_RAG_SHAREPOINT_SITE_ID=<site-id>
@@ -798,8 +803,9 @@ SRG_RAG_SHAREPOINT_ALLOWED_PATH_PREFIXES=/drives/<drive-id>/root:/Ops
 | [`docs/benchmarks/reports/provider-parity-latest.md`](docs/benchmarks/reports/provider-parity-latest.md) | Cross-provider compatibility matrix snapshot |
 | [`docs/benchmarks/reports/index.md`](docs/benchmarks/reports/index.md) | Weekly benchmark/evidence report index |
 | [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md) | Current stable release notes (v1.0.0) |
+| [`docs/releases/v1.1.0-alpha.1.md`](docs/releases/v1.1.0-alpha.1.md) | Latest prerelease notes (v1.1.0-alpha.1) |
 | [`docs/contracts/v1/`](docs/contracts/v1/) | JSON Schema contracts (policy, audit, citations, evidence bundle) |
-| [`docs/releases/v0.9.0-rc1.md`](docs/releases/v0.9.0-rc1.md) | Latest prerelease notes (v0.9.0-rc1) |
+| [`docs/releases/v0.9.0-rc1.md`](docs/releases/v0.9.0-rc1.md) | Previous prerelease notes (v0.9.0-rc1) |
 | [`docs/releases/v0.8.0-beta.1.md`](docs/releases/v0.8.0-beta.1.md) | Previous prerelease notes (v0.8.0-beta.1) |
 | [`docs/releases/v0.7.0-rc1.md`](docs/releases/v0.7.0-rc1.md) | Previous prerelease notes (v0.7.0-rc1) |
 | [`docs/releases/v0.7.0-alpha.2.md`](docs/releases/v0.7.0-alpha.2.md) | Previous prerelease notes (v0.7.0-alpha.2) |
@@ -906,6 +912,13 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Promote `v1.0.0` GA release with same-commit `release-verify` proof ([dossier](docs/releases/v1.0.0.md), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.0.0), [same-commit release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809283055), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809289654))
 - [x] Publish GA weekly evidence and operator snapshot artifacts ([weekly evidence run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809312244), [weekly report](docs/benchmarks/reports/weekly-2026-03-07.md), [snapshot JSON](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-07.json), [snapshot PNG](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-07.png))
 - [x] Validate GA operations workflows on current `main` SHA ([ga-readiness](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311534), [release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311867), [rollback-drill](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809312609))
+
+### Next (v1.1.0-alpha.1)
+- [x] Add reliability/SLO gate script with deterministic thresholds and CI output (`scripts/check_slo_reliability.py`)
+- [x] Add deterministic fault injection suite for provider storm, policy timeout, and budget backend transient failures (`scripts/run_fault_injection_suite.py`)
+- [x] Add load shedding/backpressure controls with deterministic `503 overload_shed` behavior plus audit/metrics coverage (`app/services/inflight_guard.py`, `app/services/chat_service.py`, `docs/contracts/v1/audit-event.schema.json`)
+- [x] Extend weekly evidence pipeline with soak + fault + SLO summary artifacts (`.github/workflows/weekly-evidence-report.yml`, `scripts/generate_weekly_evidence_report.py`)
+- [x] Add dedicated `slo-reliability` workflow and integrate reliability gate into CI (`.github/workflows/slo-reliability.yml`, `.github/workflows/ci.yml`)
 
 ## Licence
 

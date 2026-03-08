@@ -37,7 +37,7 @@ jobs:
           uv run python scripts/check_stabilization_window.py \
             --repo "${GITHUB_REPOSITORY}" \
             --window-days 7 \
-            --required-counts "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1" \
+            --required-counts "deploy-smoke=3,release-verify=2,ci=1,terraform-validate=1,slo-reliability=1" \
             --json-report artifacts/stabilization-window.json
 
       - name: Verify latest 10 releases (GA readiness sweep)

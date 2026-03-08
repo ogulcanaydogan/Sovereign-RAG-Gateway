@@ -21,6 +21,7 @@ class ScenarioConfig:
     attribution_accuracy: float = 1.0
     burn_prediction_error_pct: float = 2.0
     incident_false_positive_rate: float = 0.01
+    shed_rate: float = 0.0
 
 
 SCENARIOS: dict[str, ScenarioConfig] = {
@@ -83,6 +84,33 @@ SCENARIOS: dict[str, ScenarioConfig] = {
         attribution_accuracy=0.93,
         burn_prediction_error_pct=4.0,
         incident_false_positive_rate=0.04,
+    ),
+    "budget_backend_transient_failure": ScenarioConfig(
+        policy_decision="deny",
+        redaction_count=0,
+        latency_ms=240,
+        leakage_rate=0.0,
+        cost_multiplier=0.98,
+        status_code=503,
+        fault_type="budget_backend_transient",
+        detection_delay_ms=180.0,
+        attribution_accuracy=0.96,
+        burn_prediction_error_pct=3.5,
+        incident_false_positive_rate=0.02,
+    ),
+    "soak_mixed_tenant_30m": ScenarioConfig(
+        policy_decision="allow",
+        redaction_count=1,
+        latency_ms=158,
+        leakage_rate=0.004,
+        cost_multiplier=1.01,
+        status_code=200,
+        fault_type="none",
+        detection_delay_ms=0.0,
+        attribution_accuracy=1.0,
+        burn_prediction_error_pct=2.5,
+        incident_false_positive_rate=0.01,
+        shed_rate=0.01,
     ),
 }
 
@@ -253,8 +281,15 @@ def run_benchmark(
             "detection_delay_ms_p95": config.detection_delay_ms,
             "slo_burn_prediction_error_pct": config.burn_prediction_error_pct,
             "false_positive_incident_rate": config.incident_false_positive_rate,
+            "shed_rate": config.shed_rate,
         },
     }
+    if scenario == "soak_mixed_tenant_30m":
+        summary["profile"] = {
+            "name": "mixed_tenant_soak_30m",
+            "duration_minutes": 30,
+            "tenant_mix": "70/20/10",
+        }
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     report_path.write_text(

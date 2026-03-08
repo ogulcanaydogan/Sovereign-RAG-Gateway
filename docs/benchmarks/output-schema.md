@@ -125,6 +125,73 @@ Columns:
 - Markdown summary produced by `scripts/eval_pgvector_ranking.py`.
 - Must include status (`PASS`/`FAIL`), `Recall@k`, and `MRR`.
 
+## File: `fault-summary.json`
+```json
+{
+  "suite": "fault-injection-v1",
+  "generated_at": "RFC3339",
+  "dataset": "benchmarks/data/synthetic_prompts.jsonl",
+  "dataset_version": "v1",
+  "totals": {
+    "scenarios_total": 3,
+    "passed_scenarios": 3,
+    "failed_scenarios": 0,
+    "requests_total": 300,
+    "errors_total": 120,
+    "error_rate": 0.4,
+    "max_latency_ms_p95": 320.0
+  },
+  "scenarios": [
+    {
+      "scenario": "provider_429_storm",
+      "expected_fault_type": "provider_429",
+      "observed_fault_type": "provider_429",
+      "requests_total": 100,
+      "errors_total": 100,
+      "error_rate": 1.0,
+      "latency_ms_p95": 320.0,
+      "fault_attribution_accuracy": 0.95,
+      "status": "pass"
+    }
+  ]
+}
+```
+
+## File: `soak-summary.json`
+- Alias of `results_summary.json` produced by scenario `soak_mixed_tenant_30m`.
+- Must include:
+  - `profile.duration_minutes = 30`
+  - `metrics.latency_ms_p95`
+  - `metrics.requests_total`
+  - `metrics.errors_total`
+  - `metrics.shed_rate`
+
+## File: `slo-reliability-summary.json`
+```json
+{
+  "checked_at": "RFC3339",
+  "overall_pass": true,
+  "thresholds": {
+    "max_error_rate": 0.01,
+    "max_p95_regression_pct": 10.0,
+    "max_nominal_shed_rate": 0.02
+  },
+  "observed": {
+    "error_rate": 0.005,
+    "p95_regression_vs_baseline_pct": 4.2,
+    "nominal_shed_rate": 0.01,
+    "fault_failed_scenarios": 0
+  },
+  "checks": {
+    "error_rate": true,
+    "p95_regression_vs_baseline": true,
+    "nominal_shed_rate": true,
+    "fault_suite_scenarios": true
+  },
+  "missing_requirements": []
+}
+```
+
 ## Validation Rules
 - Summary metrics must be recomputable from raw CSV files.
 - CI fields must use the confidence level declared under `stats.confidence_level`.

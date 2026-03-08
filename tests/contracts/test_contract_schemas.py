@@ -105,6 +105,7 @@ def test_audit_event_schema_fixture() -> None:
         ],
         "input_redaction_count": 1,
         "output_redaction_count": 0,
+        "overload_shed_reason": "global_limit",
         "payload_hash": "hash-a",
         "prev_hash": "",
         "created_at": "2026-02-17T00:00:01Z",

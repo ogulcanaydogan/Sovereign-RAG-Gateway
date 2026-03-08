@@ -102,3 +102,40 @@ def test_render_report_includes_stabilization_and_snapshot_paths() -> None:
     assert "Overall pass: `True`" in report
     assert "Snapshot JSON:" in report
     assert "weekly-2026-03-03.png" in report
+
+
+def test_render_report_includes_slo_summary_section() -> None:
+    report = render_report(
+        report_date="2026-03-07",
+        generated_at="2026-03-07T00:00:00+00:00",
+        deploy_smoke=WorkflowEvidence("deploy-smoke", "21", "u21", "t21", "success"),
+        release=WorkflowEvidence("release", "22", "u22", "t22", "success"),
+        release_tag="v1.1.0-alpha.1",
+        release_url="u23",
+        benchmark_summary=None,
+        slo_summary={
+            "overall_pass": True,
+            "thresholds": {
+                "max_error_rate": 0.01,
+                "max_p95_regression_pct": 10,
+                "max_nominal_shed_rate": 0.02,
+            },
+            "observed": {
+                "error_rate": 0.005,
+                "p95_regression_vs_baseline_pct": 4.2,
+                "nominal_shed_rate": 0.01,
+            },
+        },
+        fault_summary={"totals": {"failed_scenarios": 0, "scenarios_total": 3, "error_rate": 0.01}},
+        soak_summary={
+            "metrics": {
+                "latency_ms_p95": 160,
+                "errors_total": 1,
+                "requests_total": 200,
+                "shed_rate": 0.01,
+            }
+        },
+    )
+    assert "## Reliability/SLO Summary" in report
+    assert "p95_regression_vs_baseline_pct" in report
+    assert "Fault suite:" in report

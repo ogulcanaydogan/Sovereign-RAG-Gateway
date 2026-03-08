@@ -90,3 +90,15 @@ def test_sharepoint_managed_identity_defaults() -> None:
     settings = Settings()
     assert settings.rag_sharepoint_managed_identity_api_version == "2018-02-01"
     assert settings.rag_sharepoint_managed_identity_resource == "https://graph.microsoft.com/"
+
+
+def test_inflight_tenant_limit_map_parses_values() -> None:
+    settings = Settings(inflight_tenant_limits="tenant-a:20, tenant-b:5,invalid")
+    assert settings.inflight_tenant_limit_map == {"tenant-a": 20, "tenant-b": 5}
+
+
+def test_inflight_tenant_limit_map_ignores_invalid_values() -> None:
+    settings = Settings(
+        inflight_tenant_limits="tenant-a:0, tenant-b:-1, tenant-c:notanint, :3, tenant-d:7"
+    )
+    assert settings.inflight_tenant_limit_map == {"tenant-d": 7}

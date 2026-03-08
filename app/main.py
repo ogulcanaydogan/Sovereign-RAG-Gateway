@@ -37,6 +37,7 @@ from app.rag.registry import ConnectorRegistry
 from app.rag.retrieval import RetrievalOrchestrator
 from app.redaction.engine import RedactionEngine
 from app.services.chat_service import ChatService
+from app.services.inflight_guard import InflightGuard
 from app.telemetry.tracing import OTLPHTTPTraceExporter, SpanCollector
 from app.webhooks.dispatcher import WebhookDispatcher, WebhookEndpoint, WebhookEventType
 
@@ -237,11 +238,22 @@ def _build_span_collector(settings: Settings) -> SpanCollector | None:
     return SpanCollector(max_traces=settings.tracing_max_traces, exporter=exporter)
 
 
+def _build_inflight_guard(settings: Settings) -> InflightGuard | None:
+    guard = InflightGuard(
+        global_limit=settings.inflight_global_limit,
+        tenant_default_limit=settings.inflight_tenant_default_limit,
+        tenant_limits=settings.inflight_tenant_limit_map,
+    )
+    if not guard.enabled:
+        return None
+    return guard
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="Sovereign RAG Gateway", version="1.0.0")
+    app = FastAPI(title="Sovereign RAG Gateway", version="1.1.0-alpha.1")
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(AuthMiddleware)
@@ -356,6 +368,7 @@ def create_app() -> FastAPI:
     budget_tracker = _build_budget_tracker(settings)
     webhook_dispatcher = _build_webhook_dispatcher(settings)
     span_collector = _build_span_collector(settings)
+    inflight_guard = _build_inflight_guard(settings)
 
     chat_service = ChatService(
         settings=settings,
@@ -371,6 +384,7 @@ def create_app() -> FastAPI:
         budget_tracker=budget_tracker,
         webhook_dispatcher=webhook_dispatcher,
         span_collector=span_collector,
+        inflight_guard=inflight_guard,
     )
     app.state.chat_service = chat_service
 

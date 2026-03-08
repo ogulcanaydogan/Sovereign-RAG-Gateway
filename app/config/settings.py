@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     tracing_otlp_headers: str = ""
     tracing_service_name: str = "sovereign-rag-gateway"
 
+    # Reliability / load shedding
+    inflight_global_limit: int = 0
+    inflight_tenant_default_limit: int = 0
+    inflight_tenant_limits: str = ""
+
     @property
     def api_key_set(self) -> set[str]:
         return {item.strip() for item in self.api_keys.split(",") if item.strip()}
@@ -185,6 +190,25 @@ class Settings(BaseSettings):
     @property
     def webhook_dead_letter_backend_normalized(self) -> str:
         return self.webhook_dead_letter_backend.strip().lower()
+
+    @property
+    def inflight_tenant_limit_map(self) -> dict[str, int]:
+        """Parse ``tenant:limit,tenant:limit`` into a dict."""
+        result: dict[str, int] = {}
+        for item in self.inflight_tenant_limits.split(","):
+            item = item.strip()
+            if ":" not in item:
+                continue
+            tenant, limit_str = item.split(":", 1)
+            try:
+                normalized_tenant = tenant.strip()
+                normalized_limit = int(limit_str.strip())
+                if not normalized_tenant or normalized_limit <= 0:
+                    continue
+                result[normalized_tenant] = normalized_limit
+            except ValueError:
+                continue
+        return result
 
 
 @lru_cache

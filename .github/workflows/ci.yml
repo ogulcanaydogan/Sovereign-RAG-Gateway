@@ -161,6 +161,25 @@ jobs:
             --max-leakage-regression-abs 0.002 \
             --max-abs-cost-drift-regression-pct 3 \
             --max-citation-drop-abs 0.1
+      - name: Reliability SLO gate
+        run: |
+          uv run python scripts/run_fault_injection_suite.py \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out-dir artifacts/fault-injection
+          uv run python scripts/benchmark_runner.py \
+            --scenario soak_mixed_tenant_30m \
+            --dataset benchmarks/data/synthetic_prompts.jsonl \
+            --out artifacts/soak
+          cp artifacts/soak/results_summary.json artifacts/soak/soak-summary.json
+          uv run python scripts/check_slo_reliability.py \
+            --benchmark-summary artifacts/benchmarks/governance/results_summary.json \
+            --fault-summary artifacts/fault-injection/fault-summary.json \
+            --soak-summary artifacts/soak/soak-summary.json \
+            --baseline-summary benchmarks/baselines/governance_enforce_redact_summary.json \
+            --max-error-rate 0.01 \
+            --max-p95-regression-pct 10 \
+            --max-nominal-shed-rate 0.02 \
+            --json-report artifacts/slo-reliability/slo-reliability-summary.json
       - name: Tests
         run: uv run pytest
 

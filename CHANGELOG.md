@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## v1.1.0-alpha.1 - 2026-03-07
+
+### Reliability/SLO Hardening Start
+- Added deterministic reliability gate script (`scripts/check_slo_reliability.py`) with explicit thresholds:
+  - `error_rate <= 1.0%`
+  - `p95_regression_vs_baseline <= 10%`
+  - `nominal_shed_rate <= 2.0%`
+- Added deterministic fault-injection suite runner (`scripts/run_fault_injection_suite.py`) covering provider storm, policy timeout, and budget backend transient scenarios.
+- Extended benchmark runner with `soak_mixed_tenant_30m` scenario and standardized soak summary metrics (`shed_rate`, profile metadata).
+
+### Runtime Backpressure
+- Added in-process in-flight guard with global and tenant-scoped caps (`app/services/inflight_guard.py`).
+- Added deterministic overload shed behavior (`503`, `error.code=overload_shed`) in chat and embeddings paths.
+- Added overload shed metric counter: `srg_overload_shed_total{tenant,endpoint,reason}`.
+- Extended audit contract with optional `overload_shed_reason` field.
+
+### CI / Operations Evidence
+- Added dedicated `slo-reliability` workflow (PR + dispatch + schedule).
+- Integrated SLO reliability gate execution into main CI workflow.
+- Extended weekly evidence workflow/report to include reliability summary from fault + soak + benchmark artifacts.
+- Extended required workflow inventory and stabilization checks to include `slo-reliability`.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `1.1.0-alpha.1` / `v1.1.0-alpha.1`.
+- Added prerelease dossier at `docs/releases/v1.1.0-alpha.1.md`.
+
 ## v1.0.0 - 2026-03-07
 
 ### GA Hardening Completion
