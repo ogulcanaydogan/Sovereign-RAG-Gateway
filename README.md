@@ -914,11 +914,11 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Validate GA operations workflows on current `main` SHA ([ga-readiness](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311534), [release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809311867), [rollback-drill](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22809312609))
 
 ### Next (v1.1.0-alpha.1)
-- [x] Add reliability/SLO gate script with deterministic thresholds and CI output (`scripts/check_slo_reliability.py`)
-- [x] Add deterministic fault injection suite for provider storm, policy timeout, and budget backend transient failures (`scripts/run_fault_injection_suite.py`)
-- [x] Add load shedding/backpressure controls with deterministic `503 overload_shed` behavior plus audit/metrics coverage (`app/services/inflight_guard.py`, `app/services/chat_service.py`, `docs/contracts/v1/audit-event.schema.json`)
-- [x] Extend weekly evidence pipeline with soak + fault + SLO summary artifacts (`.github/workflows/weekly-evidence-report.yml`, `scripts/generate_weekly_evidence_report.py`)
-- [x] Add dedicated `slo-reliability` workflow and integrate reliability gate into CI (`.github/workflows/slo-reliability.yml`, `.github/workflows/ci.yml`)
+- [x] Add reliability/SLO gate script with deterministic thresholds and CI output ([script](scripts/check_slo_reliability.py), [slo-reliability run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810621043))
+- [x] Add deterministic fault injection suite for provider storm, policy timeout, and budget backend transient failures ([script](scripts/run_fault_injection_suite.py), [weekly run evidence](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810535407))
+- [x] Add load shedding/backpressure controls with deterministic `503 overload_shed` behavior plus audit/metrics coverage ([inflight guard](app/services/inflight_guard.py), [chat service](app/services/chat_service.py), [audit schema](docs/contracts/v1/audit-event.schema.json))
+- [x] Extend weekly evidence pipeline with soak + fault + SLO summary artifacts ([workflow](.github/workflows/weekly-evidence-report.yml), [report generator](scripts/generate_weekly_evidence_report.py), [weekly report](docs/benchmarks/reports/weekly-2026-03-08.md), [snapshot JSON](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.json), [snapshot PNG](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.png))
+- [x] Add dedicated `slo-reliability` workflow and integrate reliability gate into CI ([workflow](.github/workflows/slo-reliability.yml), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810621054), [ga-readiness run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810618059), [rollback-drill run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810535411), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.1.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810636117))
 
 ## Licence
 
