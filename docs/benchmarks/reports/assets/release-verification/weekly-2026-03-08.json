@@ -1,6 +1,6 @@
 {
   "report_date": "2026-03-08",
-  "generated_at": "2026-03-08T00:37:28.650442+00:00",
+  "generated_at": "2026-03-08T08:24:04.261657+00:00",
   "source": "artifacts/release-verify-sweep-2026-03-08.json",
   "totals": {
     "total_releases": 10,
@@ -9,6 +9,15 @@
     "pass_rate": 1.0
   },
   "releases": [
+    {
+      "tag_name": "v1.1.0-alpha.1",
+      "status": "pass",
+      "passed": true,
+      "integrity_verified": true,
+      "signature_verified": true,
+      "legacy_gap_applied": false,
+      "errors": []
+    },
     {
       "tag_name": "v1.0.0",
       "status": "pass",
@@ -83,15 +92,6 @@
     },
     {
       "tag_name": "v0.6.0",
-      "status": "pass",
-      "passed": true,
-      "integrity_verified": true,
-      "signature_verified": false,
-      "legacy_gap_applied": true,
-      "errors": []
-    },
-    {
-      "tag_name": "v0.6.0-alpha.1",
       "status": "pass",
       "passed": true,
       "integrity_verified": true,
