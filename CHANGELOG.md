@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v1.1.0-alpha.2 - 2026-03-08
+
+### Reliability/SLO Track Continuation
+- Promoted the reliability hardening stream from `v1.1.0-alpha.1` to `v1.1.0-alpha.2` without expanding HTTP API surface.
+- Kept deterministic overload shedding behavior (`503`, `error.code=overload_shed`) and reliability gate thresholds stable.
+- Kept fault-injection + soak evidence flow as prerelease operating baseline.
+
+### Release Operations
+- Added roadmap reset for `Next (v1.1.0)` with measurable GA closeout checkpoints.
+- Preserved release-integrity and stabilization gates as mandatory promotion controls.
+
+### Version Alignment
+- Updated project/app/chart/Terraform defaults to `1.1.0-alpha.2` / `v1.1.0-alpha.2`.
+- Added prerelease dossier at `docs/releases/v1.1.0-alpha.2.md`.
+
 ## v1.1.0-alpha.1 - 2026-03-07
 
 ### Reliability/SLO Hardening Start
