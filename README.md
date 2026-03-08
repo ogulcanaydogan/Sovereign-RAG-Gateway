@@ -923,11 +923,11 @@ This project makes narrow, testable claims — not aspirational ones:
 - [x] Add dedicated `slo-reliability` workflow and integrate reliability gate into CI ([workflow](.github/workflows/slo-reliability.yml), [release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810621054), [ga-readiness run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810618059), [rollback-drill run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810535411), [tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.1.0-alpha.1), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22810636117))
 
 ### Next (v1.1.0)
-- [ ] Keep release-integrity baseline green (latest + latest10 sweep + evidence contract checks).
-- [ ] Confirm stabilization-window gate with `overall_pass=true` (`deploy-smoke>=3`, `release-verify>=2`, `ci>=1`, `terraform-validate>=1`, `slo-reliability>=1`).
-- [ ] Promote `v1.1.0` GA release with same-commit `release-verify` proof (`check_ga_release_gate` pass before tag).
-- [ ] Publish weekly evidence report including reliability summary and release verification snapshots.
-- [ ] Verify GA release asset/signature set in strict mode (`check_release_assets --latest --verify-bundle-integrity --verify-signature --require-public-key --enforce-prerelease-flag-parity`).
+- [x] Keep release-integrity baseline green (latest + latest10 sweep + evidence contract checks) ([release-verify run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817547925), [integrity script](scripts/check_release_assets.py), [evidence contract script](scripts/check_release_evidence_contract.py)).
+- [x] Confirm stabilization-window gate with `overall_pass=true` (`deploy-smoke>=3`, `release-verify>=2`, `ci>=1`, `terraform-validate>=1`, `slo-reliability>=1`) ([ga-readiness run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817602437), [stabilization checker](scripts/check_stabilization_window.py)).
+- [x] Promote `v1.1.0` GA release with same-commit `release-verify` proof (`check_ga_release_gate` pass before tag) ([tag/release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.1.0), [same-commit release-verify](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817547925), [release workflow run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817555889)).
+- [x] Publish weekly evidence report including reliability summary and release verification snapshots ([weekly evidence run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817602428), [weekly report](docs/benchmarks/reports/weekly-2026-03-08.md), [snapshot JSON](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.json), [snapshot PNG](docs/benchmarks/reports/assets/release-verification/weekly-2026-03-08.png)).
+- [x] Verify GA release asset/signature set in strict mode (`check_release_assets --latest --verify-bundle-integrity --verify-signature --require-public-key --enforce-prerelease-flag-parity`) ([rollback-drill run](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/actions/runs/22817602429), [release](https://github.com/ogulcanaydogan/Sovereign-RAG-Gateway/releases/tag/v1.1.0)).
 
 ## Licence
 
