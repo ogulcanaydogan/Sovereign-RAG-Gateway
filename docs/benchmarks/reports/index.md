@@ -4,6 +4,7 @@ Auto-generated index of weekly benchmark/evidence reports.
 
 | Week | Report | Deploy-smoke Run ID | Result |
 |---|---|---|---|
+| 2026-03-09 | [weekly-2026-03-09.md](weekly-2026-03-09.md) | `22817663948` | `success` |
 | 2026-03-08 | [weekly-2026-03-08.md](weekly-2026-03-08.md) | `22817545159` | `success` |
 | 2026-03-07 | [weekly-2026-03-07.md](weekly-2026-03-07.md) | `22809280959` | `success` |
 | 2026-03-06 | [weekly-2026-03-06.md](weekly-2026-03-06.md) | `22757336181` | `success` |
