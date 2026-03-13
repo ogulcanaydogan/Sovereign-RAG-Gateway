@@ -22,7 +22,7 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 | **License in standard location** | PASS | `LICENSE` file at root |
 | **Documentation of basics** | PASS | README.md (problem statement, architecture, deployment), ARCHITECTURE.md (detailed module map, request lifecycle) |
 
-### Action Items -- Basics
+### Action Items: Basics
 
 - [ ] Verify `CONTRIBUTING.md` exists. If missing, create a contribution guide covering development setup, code style (ruff, mypy), testing (pytest), and PR process.
 
@@ -47,7 +47,7 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 | **Vulnerability reporting** | PASS | SECURITY.md with responsible disclosure instructions, 48-hour initial response SLA |
 | **Vulnerability response process** | PASS | SECURITY.md: response within 48 hours, status update within 7 days, fix timeline based on severity |
 
-### Action Items -- Reporting
+### Action Items: Reporting
 
 - [ ] Consider adding a security contact email to SECURITY.md (currently marked as "to be added").
 - [ ] Consider enabling GitHub Private Vulnerability Reporting for the repository.
@@ -75,11 +75,11 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 | **release.yml** | Semver tag validation, release notes extraction, GA release-verify gate, prerelease readiness gates (stabilization window), signed release evidence artifacts, Docker build/push to GHCR, Sigstore cosign (keyless), SPDX SBOM, provenance attestation, GitHub Release creation | Security, Supply Chain |
 | **release-verify.yml** | Latest release asset/signature verification, historical integrity sweep (latest 10 releases), release evidence contract checks | Security, Supply Chain |
 | **terraform-validate.yml** | Infrastructure-as-code validation for Terraform configurations | Quality |
-| **evidence-replay-smoke.yml** | Audit trail forensic replay verification -- ensures evidence can be replayed and reconstructed | Quality, Auditability |
-| **rollback-drill.yml** | Operational rollback procedure validation -- ensures the project can recover from failed deployments | Quality, Operations |
+| **evidence-replay-smoke.yml** | Audit trail forensic replay verification; ensures evidence can be replayed and reconstructed | Quality, Auditability |
+| **rollback-drill.yml** | Operational rollback procedure validation; ensures the project can recover from failed deployments | Quality, Operations |
 | **weekly-evidence-report.yml** | Automated reliability summary and release verification snapshots as operational baseline evidence | Quality, Operations |
-| **ga-readiness.yml** | GA promotion gate enforcement -- validates that all promotion criteria are met before a GA release | Quality, Release Process |
-| **scorecard.yml** | OpenSSF Scorecard analysis -- runs weekly on Monday and on push to main; uploads SARIF to GitHub Security | Security, Best Practices |
+| **ga-readiness.yml** | GA promotion gate enforcement; validates that all promotion criteria are met before a GA release | Quality, Release Process |
+| **scorecard.yml** | OpenSSF Scorecard analysis; runs weekly on Monday and on push to main; uploads SARIF to GitHub Security | Security, Best Practices |
 | **eks-reference-validate.yml** | EKS reference architecture validation | Quality, Deployment |
 
 ### 4.3 Static Analysis
@@ -89,7 +89,7 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 | **Compiler warnings addressed** | PASS | `ruff check .` in CI (`ci.yml` lint step); ruff configured with `select = ["E", "F", "I", "UP", "B"]` |
 | **Static analysis** | PASS | mypy with strict settings (`disallow_untyped_defs = true`, `strict_equality = true`, `warn_return_any = true`); runs in CI on `app` and `scripts` packages |
 
-### Action Items -- Quality
+### Action Items: Quality
 
 - [ ] Verify pytest-cov generates coverage reports in CI. If not, add `--cov=app --cov-report=xml` to pytest invocation and set a coverage threshold (recommend >=80%).
 - [ ] Consider uploading coverage reports to Codecov or Coveralls for visibility.
@@ -126,7 +126,7 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 | **Token scoping** | Release workflow scopes `id-token: write` for Sigstore OIDC, `packages: write` for GHCR, `attestations: write` for provenance | `release.yml` |
 | **Persisted credentials** | Scorecard checkout uses `persist-credentials: false` | `scorecard.yml` |
 
-### Action Items -- Security
+### Action Items: Security
 
 - [ ] Verify Dependabot or a vulnerability scanning tool (Trivy, Snyk) is configured for dependency scanning. If not, enable Dependabot in `.github/dependabot.yml`.
 - [ ] Consider pinning all action versions to full SHA hashes across all workflows (currently done in `scorecard.yml`, verify others).
@@ -140,15 +140,15 @@ This document maps Sovereign RAG Gateway's existing practices to OpenSSF Best Pr
 
 The following areas are strong and should pass badge review without changes:
 
-1. **CI/CD maturity** -- 11 workflows covering lint, type check, testing, deployment validation, SLO reliability, release signing, operational drills, and evidence reporting. This exceeds typical badge requirements.
+1. **CI/CD maturity**: 11 workflows covering lint, type check, testing, deployment validation, SLO reliability, release signing, operational drills, and evidence reporting. This exceeds typical badge requirements.
 
-2. **Supply chain security** -- Sigstore cosign, SPDX SBOM, provenance attestation, and OpenSSF Scorecard are all in place. The release pipeline enforces stabilization windows and release-verify gates before publishing.
+2. **Supply chain security**: Sigstore cosign, SPDX SBOM, provenance attestation, and OpenSSF Scorecard are all in place. The release pipeline enforces stabilization windows and release-verify gates before publishing.
 
-3. **Security-aware design** -- Fail-closed policy enforcement, PHI/PII redaction in the hot path, hash-chained audit trails, and deterministic deny semantics demonstrate security-first thinking throughout the architecture.
+3. **Security-aware design**: fail-closed policy enforcement, PHI/PII redaction in the hot path, hash-chained audit trails, and deterministic deny semantics demonstrate security-first thinking throughout the architecture.
 
-4. **Structured release process** -- 19 releases with semantic versioning, structured changelog, release notes extraction, alpha/RC/GA promotion gates, and stabilization window validation.
+4. **Structured release process**: 19 releases with semantic versioning, structured changelog, release notes extraction, alpha/RC/GA promotion gates, and stabilization window validation.
 
-5. **Static analysis** -- Both ruff (linting) and mypy (type checking with strict settings) run in CI on every push and PR.
+5. **Static analysis**: both ruff (linting) and mypy (type checking with strict settings) run in CI on every push and PR.
 
 ### 6.2 Gaps to Address
 

@@ -21,7 +21,7 @@
 
 Sovereign RAG Gateway is open source infrastructure for digital sovereignty in AI. It is a policy-first, OpenAI-compatible governance gateway that enforces runtime policy evaluation, PHI/PII data redaction, retrieval authorization, and hash-chained audit trail generation for every LLM and RAG request before traffic leaves the organizational boundary.
 
-European organizations deploying AI in regulated sectors -- healthcare, financial services, public administration -- face a structural gap: governance controls are bolted on after the fact, audit logs are scattered across systems, and no single enforcement point can prove that data protection was applied before sensitive information reached an external provider. Sovereign RAG Gateway closes this gap by moving policy enforcement, data redaction, and evidence production into the critical request path.
+European organizations deploying AI in regulated sectors (healthcare, financial services, public administration) face a structural gap: governance controls are bolted on after the fact, audit logs are scattered across systems, and no single enforcement point can prove that data protection was applied before sensitive information reached an external provider. Sovereign RAG Gateway closes this gap by moving policy enforcement, data redaction, and evidence production into the critical request path.
 
 The gateway is fully self-hosted, requires no cloud dependencies, and supports on-premises deployment with air-gapped operation capabilities. Organizations retain complete control over their RAG pipelines, policy definitions, data residency, and audit evidence. This aligns directly with the Sovereign Tech Fund's mission to strengthen the digital infrastructure that European society depends on.
 
@@ -35,15 +35,15 @@ Sovereign RAG Gateway directly addresses multiple dimensions of digital sovereig
 
 ### 2.1 Self-Hosted, Zero Cloud Dependency
 
-The gateway runs entirely on infrastructure controlled by the deploying organization. There is no SaaS dependency, no telemetry phone-home, and no external service required for core operation. Policy evaluation uses Open Policy Agent (OPA), which runs as a local sidecar. Retrieval connectors (filesystem, PostgreSQL pgvector, S3, Confluence, Jira) connect to organization-owned data stores. The gateway can operate in air-gapped environments using hash-based local embeddings.
+The gateway runs entirely on infrastructure controlled by the deploying organization. There's no SaaS dependency, no telemetry phone-home, and no external service required for core operation. Policy evaluation uses Open Policy Agent (OPA), which runs as a local sidecar. Retrieval connectors (filesystem, PostgreSQL pgvector, S3, Confluence, Jira) connect to organization-owned data stores. The gateway can operate in air-gapped environments using hash-based local embeddings.
 
 ### 2.2 Policy Sovereignty Through OPA/Rego
 
-Policy definitions are written in Rego, a declarative language that is version-controlled, peer-reviewed, and deployed independently of gateway code. Organizations define their own governance rules -- which tenants can access which models, which data classifications require redaction, which retrieval sources are authorized for which users. Policy is authored and owned by the organization, not by a vendor.
+Policy definitions are written in Rego, a declarative language that is version-controlled, peer-reviewed, and deployed independently of gateway code. Organizations define their own governance rules: which tenants can access which models, which data classifications require redaction, and which retrieval sources are authorized for which users. Policy is authored and owned by the organization, not by a vendor.
 
 ### 2.3 Data Protection at the Enforcement Point
 
-PHI/PII redaction happens in the gateway's hot path, before any data leaves the organizational boundary. This is not post-hoc logging or best-effort filtering -- it is deterministic enforcement. If redaction fails or policy evaluation is unavailable, the gateway defaults to deterministic deny (fail-closed). European organizations processing health data (GDPR Article 9), financial records, or citizen data can demonstrate that protection was applied at the point of egress.
+PHI/PII redaction happens in the gateway's hot path, before any data leaves the organizational boundary. This isn't post-hoc logging or best-effort filtering. It's deterministic enforcement. If redaction fails or policy evaluation is unavailable, the gateway defaults to deterministic deny (fail-closed). European organizations processing health data (GDPR Article 9), financial records, or citizen data can demonstrate that protection was applied at the point of egress.
 
 ### 2.4 Tamper-Evident Audit Trails
 
@@ -61,14 +61,14 @@ The release pipeline (19 releases to date) uses Sigstore cosign for keyless cont
 
 Sovereign RAG Gateway is a Python 3.12+ application built on FastAPI and uvicorn. It exposes an OpenAI-compatible API surface (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) and processes every request through a deterministic enforcement pipeline:
 
-1. **Ingress Layer** -- Request ID assignment, Bearer token validation, tenant/user/classification extraction
-2. **Policy Evaluation** -- OPA/Rego policy evaluation with fail-closed semantics; observe and enforce modes for progressive adoption
-3. **Policy Transforms** -- Model downgrade, parameter adjustment based on policy decision
-4. **Data Redaction** -- PHI/PII regex detection with classification-aware application
-5. **Retrieval Authorization** -- Policy-scoped connector access; prompt injection cannot override source authorization
-6. **Provider Egress** -- Multi-provider routing with cost-aware selection and automatic failover (OpenAI, Azure OpenAI, Anthropic)
-7. **Citation Integrity** -- Verification that response citations reference authorized sources
-8. **Audit Evidence** -- Hash-chained JSON Lines audit events with schema validation
+1. **Ingress Layer**: Request ID assignment, Bearer token validation, tenant/user/classification extraction
+2. **Policy Evaluation**: OPA/Rego policy evaluation with fail-closed semantics; observe and enforce modes for progressive adoption
+3. **Policy Transforms**: model downgrade, parameter adjustment based on policy decision
+4. **Data Redaction**: PHI/PII regex detection with classification-aware application
+5. **Retrieval Authorization**: policy-scoped connector access; prompt injection can't override source authorization
+6. **Provider Egress**: multi-provider routing with cost-aware selection and automatic failover (OpenAI, Azure OpenAI, Anthropic)
+7. **Citation Integrity**: verification that response citations reference authorized sources
+8. **Audit Evidence**: hash-chained JSON Lines audit events with schema validation
 
 ### 3.2 RAG Connectors (5 production connectors)
 
@@ -206,7 +206,7 @@ The EU AI Act requires risk management, transparency, and human oversight for hi
 
 ### 8.3 Maintainer
 
-Ogulcan Aydogan -- sole maintainer and author. Background in ML engineering and infrastructure, with focus on governance and compliance tooling for regulated AI workloads.
+Ogulcan Aydogan, sole maintainer and author. Background in ML engineering and infrastructure, with focus on governance and compliance tooling for regulated AI workloads.
 
 ---
 
@@ -220,7 +220,7 @@ Ogulcan Aydogan -- sole maintainer and author. Background in ML engineering and 
 6. For the budget breakdown, use the table in Section 5
 7. For the timeline, use the milestones in Section 6
 8. Submit before the 2026-03-25 deadline
-9. Monitor email for reviewer questions -- typical response time is 4-6 weeks
+9. Monitor email for reviewer questions (typical response time is 4-6 weeks)
 
 ---
 
@@ -228,12 +228,12 @@ Ogulcan Aydogan -- sole maintainer and author. Background in ML engineering and 
 
 When discussing this application with Sovereign Tech Fund reviewers, emphasize:
 
-1. **Name alignment is not coincidental** -- the project was built from first principles around the concept of sovereign control over AI governance. Every design decision (fail-closed, self-hosted, OPA policy sovereignty, hash-chained audit) serves organizational sovereignty.
+1. **Name alignment isn't coincidental.** The project was built from first principles around the concept of sovereign control over AI governance. Every design decision (fail-closed, self-hosted, OPA policy sovereignty, hash-chained audit) serves organizational sovereignty.
 
-2. **This is infrastructure, not a product** -- the gateway is a building block that European organizations compose into their AI architectures. It does not compete with LLM providers; it governs the interface between organizations and providers.
+2. **This is infrastructure, not a product.** The gateway is a building block that European organizations compose into their AI architectures. It doesn't compete with LLM providers; it governs the interface between organizations and providers.
 
-3. **The security audit is the highest-leverage investment** -- a professional audit transforms the project from "promising open source tool" to "audited infrastructure that procurement teams can approve." This unlocks adoption in exactly the organizations that need sovereignty most.
+3. **The security audit is the highest-value investment.** A professional audit transforms the project from "promising open source tool" to "audited infrastructure that procurement teams can approve." This unlocks adoption in exactly the organizations that need sovereignty most.
 
-4. **Supply chain maturity is already high** -- Sigstore signing, SPDX SBOMs, provenance attestations, and OpenSSF Scorecard are already in place. The grant funds the security depth that complements this supply chain breadth.
+4. **Supply chain maturity is already high.** Sigstore signing, SPDX SBOMs, provenance attestations, and OpenSSF Scorecard are already in place. The grant funds the security depth that complements this supply chain breadth.
 
-5. **EU AI Act timing is strategic** -- organizations are actively seeking technical infrastructure to comply with EU AI Act requirements. A security-audited governance gateway with compliance documentation arrives exactly when demand peaks.
+5. **EU AI Act timing is strategic.** Organizations are actively seeking technical infrastructure to comply with EU AI Act requirements. A security-audited governance gateway with compliance documentation arrives exactly when demand peaks.

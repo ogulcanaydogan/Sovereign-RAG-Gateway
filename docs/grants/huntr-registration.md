@@ -24,7 +24,7 @@ The gateway operates in regulated environments (healthcare, financial services) 
 
 ## 2. Scope
 
-### 2.1 In Scope -- Core Modules
+### 2.1 In Scope: Core Modules
 
 All source code under `app/` is in scope. The following components are prioritized by security criticality:
 
@@ -32,8 +32,8 @@ All source code under `app/` is in scope. The following components are prioritiz
 
 | Component | Path | Description | Why It Matters |
 |---|---|---|---|
-| **PII/PHI Redaction Engine** | `app/redaction/engine.py` | Regex-based detection and scrubbing of personally identifiable information and protected health information | A bypass means sensitive data reaches external LLM providers -- direct GDPR/HIPAA violation |
-| **OPA Policy Client** | `app/policy/client.py` | HTTP client to OPA with fail-closed enforcement semantics | A bypass means requests can reach providers without policy evaluation -- governance guarantee broken |
+| **PII/PHI Redaction Engine** | `app/redaction/engine.py` | Regex-based detection and scrubbing of personally identifiable information and protected health information | A bypass means sensitive data reaches external LLM providers, a direct GDPR/HIPAA violation |
+| **OPA Policy Client** | `app/policy/client.py` | HTTP client to OPA with fail-closed enforcement semantics | A bypass means requests can reach providers without policy evaluation, breaking the governance guarantee |
 | **Policy Transforms** | `app/policy/transforms.py` | Policy-driven request/response mutations (model downgrade, parameter adjustment) | A bypass means policy-mandated restrictions can be circumvented |
 | **Policy Models** | `app/policy/models.py` | PolicyDecision schema validation | Malformed policy responses could lead to incorrect allow/deny decisions |
 | **Authentication Middleware** | `app/middleware/auth.py` | Bearer token validation, required header enforcement, tenant/user extraction | A bypass grants unauthorized access to the gateway |
@@ -75,15 +75,15 @@ All source code under `app/` is in scope. The following components are prioritiz
 | **Metrics** | `app/metrics.py` | Prometheus metrics endpoint | Information disclosure, cardinality attacks |
 | **Budget Tracker** | `app/budget/tracker.py` | Cost tracking | Manipulation could obscure actual spend |
 
-### 2.2 In Scope -- Infrastructure
+### 2.2 In Scope: Infrastructure
 
 | Component | Path | Description |
 |---|---|---|
-| **Rego Policies** | `policies/` (if present) or any `.rego` files | OPA policy definitions -- logic errors could create unintended allow/deny paths |
-| **Helm Chart** | `charts/` | Kubernetes deployment manifests -- misconfigurations affecting security posture |
-| **Dockerfile** | `Dockerfile` | Container build -- image security, secrets in layers, privilege escalation |
-| **Docker Compose** | `docker-compose.yml` | Local deployment -- secrets exposure, network misconfigurations |
-| **Terraform** | `deploy/` | Infrastructure-as-code -- misconfigurations, secrets in state |
+| **Rego Policies** | `policies/` (if present) or any `.rego` files | OPA policy definitions; logic errors could create unintended allow/deny paths |
+| **Helm Chart** | `charts/` | Kubernetes deployment manifests; misconfigurations affecting security posture |
+| **Dockerfile** | `Dockerfile` | Container build; image security, secrets in layers, privilege escalation |
+| **Docker Compose** | `docker-compose.yml` | Local deployment; secrets exposure, network misconfigurations |
+| **Terraform** | `deploy/` | Infrastructure-as-code; misconfigurations, secrets in state |
 
 ### 2.3 Out of Scope
 
@@ -101,7 +101,7 @@ The following are explicitly out of scope for bug bounty reports:
 | **Scripts** | `scripts/` | Build, release, and utility scripts not part of runtime |
 | **Virtual Environment** | `.venv/` | Dependency installation artifacts |
 
-### 2.4 Out of Scope -- Vulnerability Types
+### 2.4 Out of Scope: Vulnerability Types
 
 The following vulnerability types are out of scope regardless of where they occur:
 
@@ -134,7 +134,7 @@ Vulnerabilities that undermine specific enforcement guarantees.
 
 | Category | Example |
 |---|---|
-| **Partial Authentication Bypass** | Tenant isolation failure -- accessing another tenant's data, policies, or retrieval results |
+| **Partial Authentication Bypass** | Tenant isolation failure, accessing another tenant's data, policies, or retrieval results |
 | **Retrieval Authorization Bypass** | Accessing retrieval connectors or data sources that the evaluated policy explicitly denies |
 | **Audit Trail Manipulation** | Causing audit events to contain incorrect or misleading information (wrong policy hash, wrong redaction count, wrong provider route) without full forgery |
 | **Policy Transform Bypass** | Circumventing policy-mandated transforms (model downgrade, parameter restrictions) while still receiving an allowed decision |
@@ -158,7 +158,7 @@ Hardening recommendations and minor issues.
 
 | Category | Example |
 |---|---|
-| **Security Hardening** | Missing HTTP security headers, verbose error messages in production mode, timing side channels in authentication that leak information but do not enable bypass |
+| **Security Hardening** | Missing HTTP security headers, verbose error messages in production mode, timing side channels in authentication that leak information but don't enable bypass |
 | **Configuration Weakness** | Default settings that are insecure if not changed, missing input validation on non-security-critical fields |
 | **Informational** | Theoretical attack vectors that require unlikely preconditions, defense-in-depth recommendations |
 
@@ -225,7 +225,7 @@ uv run pytest
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/v1/chat/completions` | POST | Primary chat endpoint -- full enforcement pipeline |
+| `/v1/chat/completions` | POST | Primary chat endpoint, full enforcement pipeline |
 | `/v1/embeddings` | POST | Embedding generation endpoint |
 | `/v1/models` | GET | Model listing |
 | `/healthz` | GET | Liveness probe |
@@ -259,10 +259,10 @@ The redaction engine in `app/redaction/engine.py` is the last line of defense be
 ### Priority 2: Policy Enforcement Gaps
 
 The policy client in `app/policy/client.py` must enforce fail-closed semantics in all cases. Test:
-- OPA timeout handling -- does the gateway always deny on timeout?
-- Malformed OPA responses -- what happens with unexpected JSON structures?
+- OPA timeout handling: does the gateway always deny on timeout?
+- Malformed OPA responses: what happens with unexpected JSON structures?
 - Race conditions between policy evaluation and request processing
-- Observe mode to enforce mode transition -- can observe-mode requests bypass enforcement?
+- Observe mode to enforce mode transition: can observe-mode requests bypass enforcement?
 - Empty or null policy decisions
 
 ### Priority 3: Authentication and Tenant Isolation
@@ -313,7 +313,7 @@ The audit writer in `app/audit/writer.py` produces hash-chained evidence. Test:
 
 - [ ] Add a link to the Huntr program page in SECURITY.md
 - [ ] Add a "Security" section to README.md referencing both SECURITY.md and the Huntr program
-- [ ] Monitor Huntr for incoming reports -- set up email notifications
+- [ ] Monitor Huntr for incoming reports and set up email notifications
 - [ ] Establish an internal SLA for triaging reports within the timelines defined in Section 4.2
 
 ---
@@ -362,14 +362,14 @@ Credit researcher and close Huntr report
 
 ## 9. Legal Safe Harbor
 
-Researchers acting in good faith and in compliance with this program's scope and disclosure policy will not face legal action from the project maintainers. This safe harbor applies to:
+Researchers acting in good faith and in compliance with this program's scope and disclosure policy won't face legal action from the project maintainers. This safe harbor applies to:
 
 - Testing within the defined scope (Section 2)
 - Reporting through Huntr or the security contact in SECURITY.md
 - Not publicly disclosing vulnerabilities before the coordinated disclosure timeline (Section 4.3)
 - Not accessing, modifying, or exfiltrating data belonging to other users in production deployments
 
-This safe harbor does not extend to:
+This safe harbor doesn't extend to:
 - Testing against production deployments operated by third parties without their consent
 - Automated vulnerability scanning that causes service degradation
 - Social engineering or physical attacks

@@ -18,7 +18,7 @@
 
 ## 1. Abstract (200 words)
 
-Sovereign RAG Gateway is an open source, policy-first governance gateway for AI workloads in regulated sectors. It sits between applications and LLM providers, enforcing runtime policy evaluation through Open Policy Agent, PHI/PII data redaction, retrieval authorization across five data connectors, and tamper-evident hash-chained audit trail generation -- all before any data leaves the organizational boundary.
+Sovereign RAG Gateway is an open source, policy-first governance gateway for AI workloads in regulated sectors. It sits between applications and LLM providers, enforcing runtime policy evaluation through Open Policy Agent, PHI/PII data redaction, retrieval authorization across five data connectors, and tamper-evident hash-chained audit trail generation, all before any data leaves the organizational boundary.
 
 Current enterprise AI deployments scatter governance controls across disconnected services, making it impossible to prove that data protection was applied at the point of egress. Sovereign RAG Gateway unifies these controls in a single deterministic enforcement pipeline with fail-closed semantics: if policy evaluation is unavailable, the request is denied, not silently permitted.
 
@@ -30,7 +30,7 @@ This proposal seeks EUR 42,000 to harden the gateway for production deployment i
 
 ### 2.1 Problem Statement
 
-Organizations in healthcare, financial services, and public administration are adopting AI systems that process sensitive personal data -- patient health records, financial transactions, citizen information. The EU AI Act, GDPR, and sector-specific regulations (HIPAA for cross-border healthcare, DORA for financial services) require demonstrable governance controls: provable data protection at the point of processing, audit trails for regulatory inspection, and policy enforcement that cannot be silently bypassed.
+Organizations in healthcare, financial services, and public administration are adopting AI systems that process sensitive personal data: patient health records, financial transactions, citizen information. The EU AI Act, GDPR, and sector-specific regulations (HIPAA for cross-border healthcare, DORA for financial services) require demonstrable governance controls: provable data protection at the point of processing, audit trails for regulatory inspection, and policy enforcement that cannot be silently bypassed.
 
 Existing approaches bolt governance on after the fact. Redaction runs in a separate service with eventual consistency. Policy evaluation is asynchronous. Audit logs are scattered across systems with no causal linkage. During incidents or regulatory audits, no single system can reconstruct the complete decision path for a given AI request.
 
@@ -148,15 +148,15 @@ Sovereign RAG Gateway contributes to a trustworthy internet by ensuring that AI 
 
 ### 5.2 Privacy by Design
 
-The gateway implements privacy by design through deterministic PII/PHI redaction in the enforcement path. Data protection is not a feature flag or an optional plugin -- it is a mandatory stage in the request pipeline that cannot be bypassed. This aligns with GDPR Article 25 (Data Protection by Design and by Default).
+The gateway implements privacy by design through deterministic PII/PHI redaction in the enforcement path. Data protection isn't a feature flag or an optional plugin. It's a mandatory stage in the request pipeline that can't be bypassed. This aligns with GDPR Article 25 (Data Protection by Design and by Default).
 
 ### 5.3 Sovereignty and Self-Determination
 
 Organizations using the gateway retain complete control over:
-- **Policy definitions** -- authored in Rego, version-controlled, reviewed by the organization
-- **Data residency** -- self-hosted, no external data egress beyond the chosen LLM provider
-- **Audit evidence** -- stored locally, hash-chained, available for regulatory inspection without third-party involvement
-- **Deployment** -- Kubernetes, Docker, or bare-metal; no vendor lock-in
+- **Policy definitions**: authored in Rego, version-controlled, reviewed by the organization
+- **Data residency**: self-hosted, no external data egress beyond the chosen LLM provider
+- **Audit evidence**: stored locally, hash-chained, available for regulatory inspection without third-party involvement
+- **Deployment**: Kubernetes, Docker, or bare-metal; no vendor lock-in
 
 ### 5.4 Healthcare Use Case
 
@@ -191,10 +191,10 @@ A bank deploying AI for customer service can use Sovereign RAG Gateway to:
 
 The project is architecturally complete and operationally mature. What it lacks is the security depth and compliance documentation that European regulated organizations require before production adoption:
 
-- **No professional security audit** -- the PII redaction engine, OPA integration, and authentication layer have not been reviewed by an independent security firm
-- **Limited European PII coverage** -- current patterns focus on US formats; European national ID, tax ID, and health ID patterns are missing
-- **No EU AI Act mapping** -- organizations cannot yet map gateway capabilities to specific regulatory requirements
-- **No GDPR operational guide** -- there is no step-by-step guide for using audit trails to satisfy Article 30 record-keeping
+- **No professional security audit**: the PII redaction engine, OPA integration, and authentication layer haven't been reviewed by an independent security firm
+- **Limited European PII coverage**: current patterns focus on US formats; European national ID, tax ID, and health ID patterns are missing
+- **No EU AI Act mapping**: organizations can't yet map gateway capabilities to specific regulatory requirements
+- **No GDPR operational guide**: there's no step-by-step guide for using audit trails to satisfy Article 30 record-keeping
 
 ---
 
@@ -230,7 +230,7 @@ Sovereign RAG Gateway is the only open source project that combines inline polic
 
 ## 9. Additional Notes for NLnet Reviewers
 
-**On project scope**: This is not a "build a new thing" proposal. The gateway exists, works, and has 19 releases. This proposal funds the security and compliance hardening that transforms working open source software into infrastructure that European regulated organizations can actually adopt.
+**On project scope**: This isn't a "build a new thing" proposal. The gateway exists, works, and has 19 releases. This proposal funds the security and compliance hardening that transforms working open source software into infrastructure that European regulated organizations can actually adopt.
 
 **On sustainability**: The gateway has zero runtime costs (self-hosted, MIT license). Post-grant sustainability comes from organizational adoption driving community contribution, not from commercial licensing. The compliance documentation and security audit report are permanent assets that compound in value as the regulatory environment matures.
 
