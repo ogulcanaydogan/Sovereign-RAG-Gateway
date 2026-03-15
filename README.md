@@ -6,6 +6,7 @@
 ![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-see%20LICENSE-green)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12170/badge)](https://www.bestpractices.dev/projects/12170)
 
 Sovereign RAG Gateway enforces runtime governance — identity verification, policy evaluation, data redaction, and retrieval authorization — in the critical path of every LLM and RAG request, before traffic reaches upstream providers. It produces tamper-evident, hash-chained decision trails that enable forensic replay during incident response and regulatory audits.
 
